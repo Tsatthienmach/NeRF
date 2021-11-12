@@ -7,3 +7,6 @@ tensorboard==2.7.0
 tqdm==4.62.3
 opencv-python==4.5.4.58
 configargparse==1.5.3
+numpy
+setuptools
+kornia
