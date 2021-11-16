@@ -5,6 +5,8 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.dirname(SCRIPT_DIR))
 
 import torch
+from torch.optim import Adam
+from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data import DataLoader
 from torchvision import transforms as T
 from scripts.datasets import dataset_dict
@@ -16,21 +18,31 @@ from scripts.trainer import Trainer
 
 
 if __name__ == '__main__':
-    loss = loss_dict['mse']
+    # PARAMS
+    exp_name = 'test'
+    save_dir = 'logs'
+    sfx = '4time_downscale'
+
+    LOSS = 'mse'
+    DATASET = 'llff'
+    DATASET_DIR = '.data/nerf_llff_data/fern'
+
+    # LOSS
+    loss = loss_dict[LOSS]
 
     # DATASET
-    dataset_module = dataset_dict['llff']
+    dataset_module = dataset_dict[DATASET]
     train_set = dataset_module(
-        root_dir='.data/nerf_llff_data/fern', split='train', img_wh=(504, 378),
+        root_dir=DATASET_DIR, split='train', img_wh=(504, 378),
         spheric_poses=False, val_num=1, transforms=T.Compose([T.ToTensor()]),
         res_factor=8)
     val_set = dataset_module(
-        root_dir='.data/nerf_llff_data/fern', split='val', img_wh=(504, 378),
+        root_dir=DATASET_DIR, split='val', img_wh=(504, 378),
         spheric_poses=False, val_num=1, transforms=T.Compose([T.ToTensor()]),
         res_factor=8
     )
     test_set = dataset_module(
-        root_dir='.data/nerf_llff_data/fern', split='test', img_wh=(504, 378),
+        root_dir=DATASET_DIR, split='test', img_wh=(504, 378),
         spheric_poses=False, val_num=1, transforms=T.Compose([T.ToTensor()]),
         res_factor=8)
 
@@ -46,8 +58,56 @@ if __name__ == '__main__':
         pin_memory=True
     )
 
-    for i in ['train', 'val', 'test']:
-        c_loader = vars()[f'{i}_set']
-        for k, v in list(c_loader)[0].items():
-            print(k, v.shape)
-        print()
+    # MODELS
+    embedders = {
+        'pos': Embedder(N_freqs=10, in_channels=3, log_scale=True),
+        'dir': Embedder(N_freqs=4, in_channels=3, log_scale=True)
+    }
+    models = {
+        'coarse': NeRF(
+            D=8, W=256, in_channels_xyz=63, in_channels_dir=27, skips=[4]
+        ),
+        'fine': NeRF(
+            D=8, W=256, in_channels_xyz=63, in_channels_dir=27, skips=[4]
+        )
+    }
+
+    # OPTIMIZER AND LR SCHEDULER
+    parameters = []
+    for name, model in models.items():
+        parameters += list(model.parameters())
+
+    optimizer = Adam(parameters, lr=5e-4, eps=1e-8, weight_decay=0)
+    lr_scheduler = MultiStepLR(optimizer, milestones=[20], gamma=0.1)
+
+    # METRICS
+    metrics = {
+        'psnr': PSNR,
+        'ssim': SSIM
+    }
+
+    # LOGGERS
+    writer = Writer(
+        exp_name=exp_name, save_dir=save_dir, sfx=sfx, i_image=5
+    )
+    model_ckpt = ModelCheckPoint(
+        exp_name=exp_name, save_dir=save_dir, sfx=sfx, i_save=5
+    )
+
+    # TRAINER
+    trainer = Trainer(
+        train_set=train_loader,
+        val_set=val_loader,
+        test_set=test_loader,
+        embedders=embedders,
+        models=models,
+        loss=loss,
+        metrics=metrics,
+        optimizer=optimizer,
+        lr_scheduler=lr_scheduler,
+        writer=writer,
+        model_ckpt=model_ckpt,
+        load_weight=False
+    )
+
+    trainer.fit()

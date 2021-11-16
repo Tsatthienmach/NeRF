@@ -1,4 +1,6 @@
 import os
+import sys
+
 import torch
 import numpy as np
 from glob import glob
@@ -91,8 +93,6 @@ class LLFFDataset(Dataset):
         self.bounds = poses_bounds[:, -2:]  # (N_images, 2)
         # Step 1: Rescale focal length according to resolution
         H, W, self.focal = poses[0, :, -1]  # Original intrinsics
-        print(poses[0, :, -1])
-        print(self.img_wh)
         assert H * self.img_wh[0] == W * self.img_wh[1], "Must same ratio"
         self.focal *= self.img_wh[0] / W
         # Step 2: Correct poses

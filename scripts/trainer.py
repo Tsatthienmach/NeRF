@@ -56,11 +56,8 @@ class Trainer:
     def validate_one_epoch(self):
         pass
 
-    def train(self):
-        pass
-
-    def validate(self):
-        pass
-
     def test(self):
+        pass
+
+    def fit(self):
         pass
