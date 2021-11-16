@@ -2,11 +2,6 @@ import torch
 from torch import nn
 
 
-loss_dict = {
-    'mse': MSELoss
-}
-
-
 class MSELoss(nn.Module):
     """Mean square error loss module"""
     def __init__(self):
@@ -19,3 +14,8 @@ class MSELoss(nn.Module):
             loss += self.loss(preds['rgb_fine'], targets)
 
         return loss
+
+
+loss_dict = {
+    'mse': MSELoss
+}
