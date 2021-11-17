@@ -23,10 +23,11 @@ class LLFFDataset(Dataset):
             inward-facing manner. Otherwise, in forward-facing one
         val_step (int): validation item getting step
         res_factor (int): downscale image resolution
+        step (int):
     """
     def __init__(self, root_dir, split='train', img_wh=(504, 378),
                  spheric_poses=False, val_num=1, transforms=None,
-                 res_factor=1):
+                 res_factor=1, step=1):
         self.root_dir = root_dir
         self.split = split
         self.img_wh = img_wh
@@ -34,6 +35,7 @@ class LLFFDataset(Dataset):
         self.val_num = [max(1, val_num)]
         self.transforms = transforms if transforms else T.ToTensor()
         self.sfx = '' if res_factor == 1 else f'_{res_factor}'
+        self.step = step
         self.read_meta()
 
     def __len__(self):
@@ -85,7 +87,8 @@ class LLFFDataset(Dataset):
         poses_bounds = np.load(os.path.join(self.root_dir, 'poses_bounds.npy'))
         self.image_paths = sorted(
             glob(os.path.join(self.root_dir, f'images{self.sfx}/*'))
-        )
+        )[::self.step]
+        poses_bounds = poses_bounds[::self.step]
         if self.split in ['train', 'val']:
             assert len(poses_bounds) == len(self.image_paths)
 

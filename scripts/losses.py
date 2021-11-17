@@ -9,11 +9,17 @@ class MSELoss(nn.Module):
         self.loss = nn.MSELoss(reduction='mean')
 
     def forward(self, preds, targets):
-        loss = self.loss(preds['rgb_coarse'], targets)
+        coarse_loss = self.loss(preds['rgb_coarse'], targets)
+        losses = {
+            'coarse': coarse_loss,
+            'total': coarse_loss
+        }
         if 'rgb_fine' in preds:
-            loss += self.loss(preds['rgb_fine'], targets)
+            fine_loss = self.loss(preds['rgb_fine'], targets)
+            losses['fine'] = fine_loss
+            losses['total'] = losses['total'] + fine_loss
 
-        return loss
+        return losses
 
 
 loss_dict = {

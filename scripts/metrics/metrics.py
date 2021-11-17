@@ -34,7 +34,7 @@ class MSE(BaseMetric, ABC):
         return torch.mean((x-y) ** 2)
 
 
-class PSNR(BaseMetric, ABC):
+class PSNR(BaseMetric):
     """Peak signal-to-noise ratio metric"""
     def __init__(self):
         self.mses = []
@@ -52,7 +52,7 @@ class PSNR(BaseMetric, ABC):
         return torch.mean(torch.Tensor(psnrs))
 
 
-class SSIM(BaseMetric, ABC):
+class SSIM(BaseMetric):
     """Structural similarity index measure is used for measuring
     the similarity between two images."""
     def __init__(self):

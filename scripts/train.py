@@ -28,14 +28,14 @@ if __name__ == '__main__':
     DATASET_DIR = '.data/nerf_llff_data/fern'
 
     # LOSS
-    loss = loss_dict[LOSS]
+    loss = loss_dict[LOSS]()
 
     # DATASET
     dataset_module = dataset_dict[DATASET]
     train_set = dataset_module(
         root_dir=DATASET_DIR, split='train', img_wh=(504, 378),
         spheric_poses=False, val_num=1, transforms=T.Compose([T.ToTensor()]),
-        res_factor=8)
+        res_factor=8, step=19)
     val_set = dataset_module(
         root_dir=DATASET_DIR, split='val', img_wh=(504, 378),
         spheric_poses=False, val_num=1, transforms=T.Compose([T.ToTensor()]),
@@ -47,7 +47,7 @@ if __name__ == '__main__':
         res_factor=8)
 
     train_loader = DataLoader(
-        train_set, shuffle=True, num_workers=4, batch_size=1024 * 20,
+        train_set, shuffle=True, num_workers=4, batch_size=1024,
         pin_memory=True
     )
     val_loader = DataLoader(
@@ -82,8 +82,8 @@ if __name__ == '__main__':
 
     # METRICS
     metrics = {
-        'psnr': PSNR,
-        'ssim': SSIM
+        'psnr': PSNR(),
+        'ssim': SSIM()
     }
 
     # LOGGERS
@@ -95,6 +95,8 @@ if __name__ == '__main__':
     )
 
     # TRAINER
+    device = torch.device('cpu')
+
     trainer = Trainer(
         train_set=train_loader,
         val_set=val_loader,
@@ -107,7 +109,8 @@ if __name__ == '__main__':
         lr_scheduler=lr_scheduler,
         writer=writer,
         model_ckpt=model_ckpt,
-        load_weight=False
+        load_weight=False,
+        device=device
     )
 
     trainer.fit()
