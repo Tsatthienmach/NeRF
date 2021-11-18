@@ -100,7 +100,6 @@ class LLFFDataset(Dataset):
             [poses[..., 1:2], -poses[..., 0:1], poses[..., 2:4]], -1
         )  # (N_images, 3, 4) exclude H, W, focal
         self.poses, self.pose_avg = center_poses(poses)
-        # distance_from_center = np.linalg.norm(self.poses[..., 3], axis=1)
         val_ids = np.arange(len(poses_bounds))[::self.val_step]
         # Step 3: Correct scale so that the nearest depth is at a little more
         # than 1.0
@@ -130,17 +129,16 @@ class LLFFDataset(Dataset):
                 rays_o, rays_d = get_rays(self.directions, c2w)
                 if not self.spheric_poses:
                     near, far = 0, 1
-                    rays_o, rays_d = get_ndc_rays(self.img_wh[1],
-                                                  self.img_wh[0],
-                                                  self.focal,
-                                                  1.0,
-                                                  rays_o,
-                                                  rays_d)
+                    rays_o, rays_d = get_ndc_rays(
+                        self.img_wh[1], self.img_wh[0], self.focal, 1.0,
+                        rays_o, rays_d
+                    )
                 else:
                     near = self.bounds.min()
                     far = min(8 * near, self.bounds.max())
 
                 self.all_rays.append(self.to_rays(rays_o, rays_d, near, far))
+
             self.all_rays = torch.cat(self.all_rays, 0)
             self.all_rgbs = torch.cat(self.all_rgbs, 0)
 

@@ -20,14 +20,39 @@ from scripts.utils.video_utils import VideoWriter
 
 if __name__ == '__main__':
     # PARAMS
-    device = torch.device('cpu')
-    exp_name = 'test'
+    device = torch.device('cuda:0')
+    exp_name = 'fern'
     save_dir = 'logs'
-    sfx = '4time_downscale'
+    sfx = '4'
+    CHUNK = 1024 * 2
+    BATCH_SIZE = 1024 * 2
+    IMG_WH = (504, 378)
+    RES_FACTOR = 8
+    VAL_STEP = 10
+    POS_FREQS = 10
+    DIR_FREQS = 4
+    IN_CHANNELS = 3
+    LOG_SCALE = True
+    NERF_DEPTH = 8
+    NERF_HID_LAYERS = 256
+    POS_IN_CHANNELS = 63
+    DIR_IN_CHANNELS = 27
+    LR = 5e-4
+    WEIGHT_DECAY = 0
+    I_IMAGE = 1
+    I_SAVE = 1
+    I_TEST = 5
+    N_IMPORTANCE = 64
+    N_SAMPLES = 64
+    N_POSES = 120
+    VAL_STEP = 8
+
+    FPS = 12
+    LOAD_WEIGHT = False
 
     LOSS = 'mse'
     DATASET = 'llff'
-    DATASET_DIR = '.data/nerf_llff_data/fern'
+    DATASET_DIR = '/home/tranhdq/Datasets/nerf_llff_data/fern'
 
     # LOSS
     loss = loss_dict[LOSS]()
@@ -37,21 +62,21 @@ if __name__ == '__main__':
     train_set = dataset_module(
         root_dir=DATASET_DIR, split='train', img_wh=(504, 378),
         spheric_poses=False, transforms=T.Compose([T.ToTensor()]),
-        res_factor=8, val_step=10
+        res_factor=8, val_step=VAL_STEP
     )
     val_set = dataset_module(
         root_dir=DATASET_DIR, split='val', img_wh=(504, 378),
         spheric_poses=False, transforms=T.Compose([T.ToTensor()]),
-        res_factor=8, val_step=10
+        res_factor=8, val_step=VAL_STEP
     )
     test_set = dataset_module(
         root_dir=DATASET_DIR, split='test', img_wh=(504, 378),
         spheric_poses=False, transforms=T.Compose([T.ToTensor()]),
-        res_factor=8, val_step=10
+        res_factor=8, val_step=VAL_STEP
     )
 
     train_loader = DataLoader(
-        train_set, shuffle=False, num_workers=4, batch_size=1024,
+        train_set, shuffle=True, num_workers=4, batch_size=BATCH_SIZE,
         pin_memory=True
     )
     val_loader = DataLoader(
@@ -63,8 +88,8 @@ if __name__ == '__main__':
 
     # MODELS
     embedders = {
-        'pos': Embedder(N_freqs=10, in_channels=3, log_scale=True).to(device),
-        'dir': Embedder(N_freqs=4, in_channels=3, log_scale=True).to(device)
+        'pos': Embedder(N_freqs=10, in_channels=3, log_scale=True),
+        'dir': Embedder(N_freqs=4, in_channels=3, log_scale=True)
     }
     models = {
         'coarse': NeRF(
@@ -96,7 +121,7 @@ if __name__ == '__main__':
     model_ckpt = ModelCheckPoint(
         exp_name=exp_name, save_dir=save_dir, sfx=sfx, i_save=1
     )
-    video_writer = VideoWriter(exp_name, sfx=sfx, fps=3, res=(504, 378))
+    video_writer = VideoWriter(exp_name, sfx=sfx, fps=FPS, res=(504, 378))
 
     # TRAINER
     trainer = Trainer(
@@ -111,10 +136,14 @@ if __name__ == '__main__':
         lr_scheduler=lr_scheduler,
         writer=writer,
         model_ckpt=model_ckpt,
-        load_weight=False,
+        weight='logs/test_4time_downscale/checkpoint_best_psnr.pth',
+        load_weight=LOAD_WEIGHT,
         device=device,
-        chunk=1024,
-        video_writer=video_writer
+        chunk=CHUNK,
+        video_writer=video_writer,
+        i_test=I_TEST,
+        N_samples=64,
+        N_importance=64,
     )
 
     trainer.fit()

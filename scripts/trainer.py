@@ -2,7 +2,7 @@ import torch
 import numpy as np
 from tqdm import tqdm
 from collections import defaultdict
-from .utils.rendering import render_rays
+from utils.rendering import render_rays
 
 
 class Trainer:
@@ -23,12 +23,13 @@ class Trainer:
         metrics (dict): dictionary that contains metrics
         optimizer: training optimizer
         lr_scheduler: learning rate scheduler
-        write: writer module for logging training information
+        writer: writer module for logging training information
         model_ckpt: model checkpoint module for saving/loading model
         load_weight (bool): If True, load pretrained checkpoints
         chunk (int): TODO
         epochs (int): number of training loops
         device: training device
+        i_test (int): test model every i_test epochs
         video_writer: testing video writer
     """
 
@@ -48,12 +49,14 @@ class Trainer:
                  video_writer=None,
                  N_samples=64,
                  N_importance=64,
-                 chunk=1024 * 32,
+                 chunk=1024 * 2,
                  epochs=100,
                  perturb=1.0,
                  noise_std=1.0,
+                 i_test=5,
                  white_bg=False,
                  use_disp=False,
+                 weight=None,
                  load_weight=False):
         self.embedders = embedders
         self.models = models
@@ -66,7 +69,6 @@ class Trainer:
         self.lr_scheduler = lr_scheduler
         self.writer = writer
         self.model_ckpt = model_ckpt
-        self.load_weight = load_weight
         self.chunk = chunk
         self.epochs = epochs
         self._current_epoch = 0
@@ -78,7 +80,11 @@ class Trainer:
         self.use_disp = use_disp
         self.device = device
         self.best_psnr = 0.
+        self.i_test = i_test
         self.video_writer = video_writer
+        self.weight = weight
+        if load_weight is True and weight is not None:
+            self.load_ckpt()
         # Init trainer
 
     def forward(self, rays, val_tqdm=None, test_mode=False):
@@ -129,9 +135,6 @@ class Trainer:
                     gt=rgbs.cpu()
                 )
 
-            if b_idx > 1:
-                break
-
         psnr = psnr_metric.compute()
         self.writer.save_loss(np.mean(psnr_metric.mses), epoch, pfx='train')
         self.writer.save_metrics({'psnr': psnr}, epoch, pfx='train')
@@ -172,15 +175,15 @@ class Trainer:
                     vars()[f'{metric_name}_metric'].compute()
 
             self.writer.save_metrics(metric_results, epoch, pfx='val')
-            self.writer.save_loss(np.mean(vars()['psnr_metric'].mses),
-                                  epoch, pfx='val')
-            self.writer.save_imgs(torch.stack(pred_rgbs, dim=0),
-                                  b_rgbs.cpu(),
-                                  epoch, data_format='NHWC')
+            self.writer.save_loss(np.mean(vars()['psnr_metric'].mses), epoch,
+                                  pfx='val')
             self.writer.save_depths(torch.stack(pred_depths, dim=0), epoch)
+            self.writer.save_imgs(torch.stack(pred_rgbs, dim=0), b_rgbs,
+                                  epoch, data_format='NHWC')
 
     def test(self, epoch):
         self.eval()
+        self.video_writer.create_videos(v_sfx=f'epoch_{epoch}')
         data_tqdm = tqdm(self.test_set)
         for b_idx, batch in enumerate(data_tqdm):
             b_rays, WH = batch['rays'], batch['wh']
@@ -216,13 +219,23 @@ class Trainer:
     def fit(self):
         for e in range(self._current_epoch, self.epochs):
             print(f'--------------- {e} ---------------')
-            # self.train_one_epoch(e)
-            # self.validate(e)
-            if e % 1 == 0:
+            self.train_one_epoch(e)
+            self.validate(e)
+            if (e + 1) % self.i_test == 0:
                 self.test(e)
 
-    def load_weight(self):
-        self._current_epoch = 0  # TODO
+    def load_ckpt(self):
+        print('-----------------------------')
+        ckpt = torch.load(self.weight)
+        self.optimizer.load_state_dict(ckpt['optimizer'])
+        self.lr_scheduler.load_state_dict(ckpt['lr_scheduler'])
+        self._current_epoch = ckpt['epoch'] + 1
+        self.best_psnr = ckpt['best_psnr']
+        self.models['coarse'].load_state_dict(ckpt['coarse'])
+        if self.N_importance > 0:
+            self.models['fine'].load_state_dict(ckpt['fine'])
+        print('         Loaded weight       ')
+        print('-----------------------------')
 
     @staticmethod
     def decode_batch(batch):
