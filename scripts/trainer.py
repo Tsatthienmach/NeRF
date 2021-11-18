@@ -29,6 +29,7 @@ class Trainer:
         chunk (int): TODO
         epochs (int): number of training loops
         device: training device
+        video_writer: testing video writer
     """
 
     def __init__(self,
@@ -44,6 +45,7 @@ class Trainer:
                  writer,
                  device,
                  model_ckpt=None,
+                 video_writer=None,
                  N_samples=64,
                  N_importance=64,
                  chunk=1024 * 32,
@@ -76,6 +78,7 @@ class Trainer:
         self.use_disp = use_disp
         self.device = device
         self.best_psnr = 0.
+        self.video_writer = video_writer
         # Init trainer
 
     def forward(self, rays, val_tqdm=None, test_mode=False):
@@ -149,7 +152,7 @@ class Trainer:
         data_tqdm = tqdm(self.val_set)
         for b_idx, batch in enumerate(data_tqdm):
             b_rays, b_rgbs = self.decode_batch(batch)
-            pred_rgbs = []
+            pred_rgbs, pred_depths = [], []
             for i, rays in enumerate(b_rays):
                 with torch.no_grad():
                     results = self.forward(rays.to(self.device),
@@ -157,7 +160,9 @@ class Trainer:
 
                 typ = 'fine' if 'rgb_fine' in results else 'coarse'
                 img = results[f'rgb_{typ}'].view(b_rgbs[i].shape).cpu()
+                depth = results[f'depth_{typ}'].view(b_rgbs[i].shape[:2]).cpu()
                 pred_rgbs.append(img)
+                pred_depths.append(depth)
                 for metric_name in self.metrics.keys():
                     vars()[f'{metric_name}_metric'].update(img, b_rgbs[i])
 
@@ -172,6 +177,33 @@ class Trainer:
             self.writer.save_imgs(torch.stack(pred_rgbs, dim=0),
                                   b_rgbs.cpu(),
                                   epoch, data_format='NHWC')
+            self.writer.save_depths(torch.stack(pred_depths, dim=0), epoch)
+
+    def test(self, epoch):
+        self.eval()
+        data_tqdm = tqdm(self.test_set)
+        for b_idx, batch in enumerate(data_tqdm):
+            b_rays, WH = batch['rays'], batch['wh']
+            W, H = WH[0][0], WH[1][0]
+            pred_rgbs, pred_depths = [], []
+            for rays in b_rays:
+                with torch.no_grad():
+                    results = self.forward(rays.to(self.device),
+                                           val_tqdm=data_tqdm,
+                                           test_mode=True)
+
+                typ = 'fine' if 'rgb_fine' in results else 'coarse'
+                img = results[f'rgb_{typ}'].view(H, W, 3).cpu()
+                depth = results[f'depth_{typ}'].view(H, W, 1).cpu()
+                pred_rgbs.append(img)
+                pred_depths.append(depth)
+
+            pred_depths = torch.stack(pred_depths, dim=0)
+            pred_rgbs = torch.stack(pred_rgbs, dim=0)
+            self.video_writer.add_rgb_frames(pred_rgbs)
+            self.video_writer.add_depth_frames(pred_depths)
+
+        self.video_writer.close()
 
     def train(self):
         for _, model in self.models.items():
@@ -181,14 +213,13 @@ class Trainer:
         for _, model in self.models.items():
             model.eval()
 
-    def test(self):
-        pass
-
     def fit(self):
         for e in range(self._current_epoch, self.epochs):
             print(f'--------------- {e} ---------------')
-            self.train_one_epoch(e)
-            self.validate(e)
+            # self.train_one_epoch(e)
+            # self.validate(e)
+            if e % 1 == 0:
+                self.test(e)
 
     def load_weight(self):
         self._current_epoch = 0  # TODO

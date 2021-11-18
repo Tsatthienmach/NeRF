@@ -61,3 +61,19 @@ class Writer:
             merged_images = torch.cat([gt_imgs, pred_imgs], dim=-3)
             self.writer.add_images(f'Results/{sfx}', merged_images, epoch,
                                    dataformats=data_format)
+
+    def save_depths(self, depths, epoch, sfx=''):
+        """Save depth of predictions
+
+        Args:
+            depths (tensor | BxHxW)
+            epoch (int): current epoch
+            sfx (str): suffix
+        """
+        if epoch % self.i_image == 0:
+            self.writer.add_images('Depths', depths.unsqueeze(3), epoch,
+                                   dataformats='NHWC')
+
+        if sfx != '':
+            self.writer.add_images(f'Depth/{sfx}', depths.unsqueeze(3),
+                                   epoch, dataformats='NHWC')

@@ -15,6 +15,7 @@ from scripts.loggers import Writer, ModelCheckPoint
 from scripts.metrics import SSIM, PSNR
 from scripts.models import NeRF, Embedder
 from scripts.trainer import Trainer
+from scripts.utils.video_utils import VideoWriter
 
 
 if __name__ == '__main__':
@@ -95,6 +96,7 @@ if __name__ == '__main__':
     model_ckpt = ModelCheckPoint(
         exp_name=exp_name, save_dir=save_dir, sfx=sfx, i_save=1
     )
+    video_writer = VideoWriter(exp_name, sfx=sfx, fps=3, res=(504, 378))
 
     # TRAINER
     trainer = Trainer(
@@ -111,7 +113,8 @@ if __name__ == '__main__':
         model_ckpt=model_ckpt,
         load_weight=False,
         device=device,
-        chunk=1024
+        chunk=1024,
+        video_writer=video_writer
     )
 
     trainer.fit()

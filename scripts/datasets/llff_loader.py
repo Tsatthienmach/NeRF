@@ -68,6 +68,7 @@ class LLFFDataset(Dataset):
             sample = {
                 'rays': rays,
                 'c2w': c2w,
+                'wh': self.img_wh
             }
             if self.split == 'val':
                 img = Image.open(self.image_path_vals[idx]).convert('RGB')
