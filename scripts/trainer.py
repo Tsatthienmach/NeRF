@@ -78,7 +78,7 @@ class Trainer:
         self.best_psnr = 0.
         # Init trainer
 
-    def forward(self, rays, test_mode=False):
+    def forward(self, rays, val_tqdm=None, test_mode=False):
         bs = rays.shape[0]
         results = defaultdict(list)
         for i in range(0, bs, self.chunk):
@@ -90,6 +90,9 @@ class Trainer:
             )
             for k, v in rendered_ray_chunks.items():
                 results[k] += [v]
+
+            if val_tqdm:
+                val_tqdm.set_description(f'Rays: {i + self.chunk}/{bs}')
 
         for k, v in results.items():
             results[k] = torch.cat(v, dim=0)
@@ -119,9 +122,12 @@ class Trainer:
             )
             with torch.no_grad():
                 psnr_metric.update(
-                    pred=results[f'rgb_{typ}'],
-                    gt=rgbs
+                    pred=results[f'rgb_{typ}'].cpu(),
+                    gt=rgbs.cpu()
                 )
+
+            if b_idx > 1:
+                break
 
         psnr = psnr_metric.compute()
         self.writer.save_loss(np.mean(psnr_metric.mses), epoch, pfx='train')
@@ -143,16 +149,15 @@ class Trainer:
         data_tqdm = tqdm(self.val_set)
         for b_idx, batch in enumerate(data_tqdm):
             b_rays, b_rgbs = self.decode_batch(batch)
-            b_rays.to(self.device)
-            b_rgbs.to(self.device)
             pred_rgbs = []
             for i, rays in enumerate(b_rays):
                 with torch.no_grad():
-                    results = self.forward(rays)
+                    results = self.forward(rays.to(self.device),
+                                           val_tqdm=data_tqdm)
 
                 typ = 'fine' if 'rgb_fine' in results else 'coarse'
-                img = results[f'rgb_{typ}'].view(b_rgbs[i].shape)
-                pred_rgbs.append(img.cpu())
+                img = results[f'rgb_{typ}'].view(b_rgbs[i].shape).cpu()
+                pred_rgbs.append(img)
                 for metric_name in self.metrics.keys():
                     vars()[f'{metric_name}_metric'].update(img, b_rgbs[i])
 
@@ -181,6 +186,7 @@ class Trainer:
 
     def fit(self):
         for e in range(self._current_epoch, self.epochs):
+            print(f'--------------- {e} ---------------')
             self.train_one_epoch(e)
             self.validate(e)
 

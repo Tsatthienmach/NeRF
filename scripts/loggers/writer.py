@@ -41,23 +41,23 @@ class Writer:
                                    metric_value,
                                    epoch)
 
-    def save_imgs(self, pred_imgs, gt_imgs, epoch, sfx='', data_format='NCHW'):
+    def save_imgs(self, pred_imgs, gt_imgs, epoch, sfx='', data_format='NHWC'):
         """Save validation images.
 
         Args:
-            pred_imgs (tensor | Bs, 3, H, W): predicted images
-            gt_imgs (tensor | Bs, 3, H, W): ground truth images
+            pred_imgs (tensor | Bs, H, W, C): predicted images
+            gt_imgs (tensor | Bs, H, W, C): ground truth images
             epoch (int): current epoch
             sfx (str): suffix for special cases
             data_format (str): Image data format specification of the form NCHW,
                 NHWC, CHW, HWC, HW, WH, etc
         """
         if epoch % self.i_image == 0:
-            merged_images = torch.cat([gt_imgs, pred_imgs], dim=-2)
+            merged_images = torch.cat([gt_imgs, pred_imgs], dim=-3)
             self.writer.add_images('Results', merged_images, epoch,
                                    dataformats=data_format)
 
         if sfx != '':
-            merged_images = torch.cat([gt_imgs, pred_imgs], dim=-2)
+            merged_images = torch.cat([gt_imgs, pred_imgs], dim=-3)
             self.writer.add_images(f'Results/{sfx}', merged_images, epoch,
                                    dataformats=data_format)

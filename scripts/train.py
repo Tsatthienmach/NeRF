@@ -50,7 +50,7 @@ if __name__ == '__main__':
     )
 
     train_loader = DataLoader(
-        train_set, shuffle=True, num_workers=4, batch_size=1024,
+        train_set, shuffle=False, num_workers=4, batch_size=1024,
         pin_memory=True
     )
     val_loader = DataLoader(
