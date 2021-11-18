@@ -1,6 +1,5 @@
 import os
 import sys
-
 import torch
 import numpy as np
 from glob import glob
@@ -21,28 +20,26 @@ class LLFFDataset(Dataset):
         transforms (object): transformer
         spheric_poses (bool): If True, the images are taken in a spheric
             inward-facing manner. Otherwise, in forward-facing one
-        val_step (int): validation item getting step
         res_factor (int): downscale image resolution
-        step (int):
+        val_step (int): every val_step, get a sample for validation
     """
     def __init__(self, root_dir, split='train', img_wh=(504, 378),
-                 spheric_poses=False, val_num=1, transforms=None,
-                 res_factor=1, step=1):
+                 spheric_poses=False, transforms=None, res_factor=1,
+                 val_step=1):
         self.root_dir = root_dir
         self.split = split
         self.img_wh = img_wh
         self.spheric_poses = spheric_poses
-        self.val_num = [max(1, val_num)]
         self.transforms = transforms if transforms else T.ToTensor()
         self.sfx = '' if res_factor == 1 else f'_{res_factor}'
-        self.step = step
+        self.val_step = val_step
         self.read_meta()
 
     def __len__(self):
         if self.split == 'train':
             return len(self.all_rays)
         elif self.split == 'val':
-            return len(self.val_num)
+            return len(self.image_path_vals)
         else:
             return len(self.poses_test)
 
@@ -54,7 +51,7 @@ class LLFFDataset(Dataset):
             }
         else:
             if self.split == 'val':
-                c2w = torch.FloatTensor(self.c2w_val)
+                c2w = torch.FloatTensor(self.c2w_vals[idx])
             else:
                 c2w = torch.FloatTensor(self.poses_test[idx])
 
@@ -70,16 +67,15 @@ class LLFFDataset(Dataset):
             rays = self.to_rays(rays_o, rays_d, near, far)
             sample = {
                 'rays': rays,
-                'c2w': c2w
+                'c2w': c2w,
             }
             if self.split == 'val':
-                img = Image.open(self.image_path_val).convert('RGB')
+                img = Image.open(self.image_path_vals[idx]).convert('RGB')
                 if img.size != self.img_wh:
                     img = img.resize(self.img_wh, Image.LANCZOS)
 
-                img = self.transforms(img)
-                img = img.view(3, -1).permute(1, 0)
-                sample['rgbs'] = img
+                img = self.transforms(img).view(3, -1).permute(1, 0)
+                sample['rgbs'] = img.view(self.img_wh[1], self.img_wh[0], 3)
 
         return sample
 
@@ -87,8 +83,7 @@ class LLFFDataset(Dataset):
         poses_bounds = np.load(os.path.join(self.root_dir, 'poses_bounds.npy'))
         self.image_paths = sorted(
             glob(os.path.join(self.root_dir, f'images{self.sfx}/*'))
-        )[::self.step]
-        poses_bounds = poses_bounds[::self.step]
+        )
         if self.split in ['train', 'val']:
             assert len(poses_bounds) == len(self.image_paths)
 
@@ -104,8 +99,8 @@ class LLFFDataset(Dataset):
             [poses[..., 1:2], -poses[..., 0:1], poses[..., 2:4]], -1
         )  # (N_images, 3, 4) exclude H, W, focal
         self.poses, self.pose_avg = center_poses(poses)
-        distance_from_center = np.linalg.norm(self.poses[..., 3], axis=1)
-        val_idx = np.argmin(distance_from_center)  # TODO why chose the nearest one
+        # distance_from_center = np.linalg.norm(self.poses[..., 3], axis=1)
+        val_ids = np.arange(len(poses_bounds))[::self.val_step]
         # Step 3: Correct scale so that the nearest depth is at a little more
         # than 1.0
         near_original = self.bounds.min()
@@ -119,7 +114,7 @@ class LLFFDataset(Dataset):
             self.all_rays = []
             self.all_rgbs = []
             for i, image_path in enumerate(self.image_paths):
-                if i == val_idx:
+                if i in val_ids:
                     continue
                 c2w = torch.FloatTensor(self.poses[i])
                 img = Image.open(image_path).convert('RGB')
@@ -149,8 +144,8 @@ class LLFFDataset(Dataset):
             self.all_rgbs = torch.cat(self.all_rgbs, 0)
 
         elif self.split == 'val':
-            self.c2w_val = self.poses[val_idx]
-            self.image_path_val = self.image_paths[val_idx]
+            self.c2w_vals = self.poses[val_ids]
+            self.image_path_vals = [self.image_paths[idx] for idx in val_ids]
 
         else:  # For testing
             if self.split.endswith('train'):

@@ -25,23 +25,23 @@ class Writer:
         self.log_dir = os.path.join(save_dir, f'{exp_name}{sfx}')
         self.writer = SummaryWriter(log_dir=f'{self.log_dir}/tensorboard')
 
-    def save_loss(self, loss, epoch, prefix):
-        self.writer.add_scalar(f'Loss/{prefix}', loss, epoch)
+    def save_loss(self, loss, epoch, pfx):
+        self.writer.add_scalar(f'Loss/{pfx}', loss, epoch)
 
-    def save_metrics(self, metrics, epoch, prefix):
+    def save_metrics(self, metrics, epoch, pfx):
         """Save multiple metric results.
 
         Args:
             metrics (dict): Ex. {'psnr': 43.3, 'ssim': 22.2}
             epoch (int): current epoch
-            prefix (str): train/val
+            pfx (str): train/val
         """
         for metric_name, metric_value in metrics.items():
-            self.writer.add_scalar(f'Metric/{prefix}/{metric_name}',
+            self.writer.add_scalar(f'Metric/{pfx}/{metric_name}',
                                    metric_value,
                                    epoch)
 
-    def save_imgs(self, pred_imgs, gt_imgs, epoch, sfx=''):
+    def save_imgs(self, pred_imgs, gt_imgs, epoch, sfx='', data_format='NCHW'):
         """Save validation images.
 
         Args:
@@ -49,11 +49,15 @@ class Writer:
             gt_imgs (tensor | Bs, 3, H, W): ground truth images
             epoch (int): current epoch
             sfx (str): suffix for special cases
+            data_format (str): Image data format specification of the form NCHW,
+                NHWC, CHW, HWC, HW, WH, etc
         """
         if epoch % self.i_image == 0:
             merged_images = torch.cat([gt_imgs, pred_imgs], dim=-2)
-            self.writer.add_images('Results', merged_images, epoch)
+            self.writer.add_images('Results', merged_images, epoch,
+                                   dataformats=data_format)
 
         if sfx != '':
             merged_images = torch.cat([gt_imgs, pred_imgs], dim=-2)
-            self.writer.add_images(f'Results/{sfx}', merged_images, epoch)
+            self.writer.add_images(f'Results/{sfx}', merged_images, epoch,
+                                   dataformats=data_format)

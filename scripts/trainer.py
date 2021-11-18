@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 from tqdm import tqdm
 from collections import defaultdict
 from .utils.rendering import render_rays
@@ -29,6 +30,7 @@ class Trainer:
         epochs (int): number of training loops
         device: training device
     """
+
     def __init__(self,
                  train_set,
                  val_set,
@@ -53,7 +55,7 @@ class Trainer:
                  load_weight=False):
         self.embedders = embedders
         self.models = models
-        self.train_set = tqdm(train_set)
+        self.train_set = train_set
         self.val_set = val_set
         self.test_set = test_set
         self.loss = loss
@@ -73,17 +75,18 @@ class Trainer:
         self.white_bg = white_bg
         self.use_disp = use_disp
         self.device = device
+        self.best_psnr = 0.
         # Init trainer
 
-    def forward(self, rays):
+    def forward(self, rays, test_mode=False):
         bs = rays.shape[0]
         results = defaultdict(list)
         for i in range(0, bs, self.chunk):
-            chunk_ray = rays[i:i+self.chunk]
+            chunk_ray = rays[i:i + self.chunk]
             rendered_ray_chunks = render_rays(
                 self.models, self.embedders, chunk_ray, self.N_samples,
                 self.use_disp, self.perturb, self.noise_std, self.N_importance,
-                self.chunk, self.white_bg, test_mode=False
+                self.chunk, self.white_bg, test_mode=test_mode
             )
             for k, v in rendered_ray_chunks.items():
                 results[k] += [v]
@@ -94,8 +97,11 @@ class Trainer:
         return results
 
     def train_one_epoch(self, epoch):
-        self.metrics['psnr'].reset()
-        for b_idx, batch in enumerate(self.train_set):
+        psnr_metric = self.metrics['psnr']
+        psnr_metric.reset()
+        data_tqdm = tqdm(self.train_set)
+        self.train()
+        for b_idx, batch in enumerate(data_tqdm):
             rays, rgbs = self.decode_batch(batch)
             rays = rays.to(self.device)
             rgbs = rgbs.to(self.device)
@@ -106,18 +112,69 @@ class Trainer:
             loss.backward()
             self.optimizer.step()
             typ = 'fine' if 'rgb_fine' in results else 'coarse'
+            data_tqdm.set_description(
+                f"Loss: C: {losses['coarse']:.3f}" +
+                f"| F: {losses['fine']:.3f}" +
+                f"| {loss:.3f}"
+            )
             with torch.no_grad():
-                self.metrics['psnr'].update(
+                psnr_metric.update(
                     pred=results[f'rgb_{typ}'],
                     gt=rgbs
                 )
 
-        print(f'---> coarse: {losses["coarse"]} | fine: {losses["fine"]} | {loss}')
-        print('---->', self.metrics['psnr'].compute())
+        psnr = psnr_metric.compute()
+        self.writer.save_loss(np.mean(psnr_metric.mses), epoch, pfx='train')
+        self.writer.save_metrics({'psnr': psnr}, epoch, pfx='train')
+        self.model_ckpt.save(self.models, self.optimizer, self.lr_scheduler,
+                             psnr, epoch, sfx='')
+        if psnr > self.best_psnr:
+            self.best_psnr = psnr
+            self.model_ckpt.save(self.models, self.optimizer,
+                                 self.lr_scheduler, psnr, epoch=-1,
+                                 sfx='best_psnr')
 
+    def validate(self, epoch):
+        self.eval()
+        for metric_name, metric in self.metrics.items():
+            vars()[f'{metric_name}_metric'] = metric
+            vars()[f'{metric_name}_metric'].reset()
 
-    def validate_one_epoch(self):
-        pass
+        data_tqdm = tqdm(self.val_set)
+        for b_idx, batch in enumerate(data_tqdm):
+            b_rays, b_rgbs = self.decode_batch(batch)
+            b_rays.to(self.device)
+            b_rgbs.to(self.device)
+            pred_rgbs = []
+            for i, rays in enumerate(b_rays):
+                with torch.no_grad():
+                    results = self.forward(rays)
+
+                typ = 'fine' if 'rgb_fine' in results else 'coarse'
+                img = results[f'rgb_{typ}'].view(b_rgbs[i].shape)
+                pred_rgbs.append(img.cpu())
+                for metric_name in self.metrics.keys():
+                    vars()[f'{metric_name}_metric'].update(img, b_rgbs[i])
+
+            metric_results = {}
+            for metric_name in self.metrics.keys():
+                metric_results[metric_name] = \
+                    vars()[f'{metric_name}_metric'].compute()
+
+            self.writer.save_metrics(metric_results, epoch, pfx='val')
+            self.writer.save_loss(np.mean(vars()['psnr_metric'].mses),
+                                  epoch, pfx='val')
+            self.writer.save_imgs(torch.stack(pred_rgbs, dim=0),
+                                  b_rgbs.cpu(),
+                                  epoch, data_format='NHWC')
+
+    def train(self):
+        for _, model in self.models.items():
+            model.train()
+
+    def eval(self):
+        for _, model in self.models.items():
+            model.eval()
 
     def test(self):
         pass
@@ -125,6 +182,7 @@ class Trainer:
     def fit(self):
         for e in range(self._current_epoch, self.epochs):
             self.train_one_epoch(e)
+            self.validate(e)
 
     def load_weight(self):
         self._current_epoch = 0  # TODO

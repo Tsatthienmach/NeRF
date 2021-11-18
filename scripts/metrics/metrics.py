@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 from abc import ABC
 from .base_metric import BaseMetric
 from skimage.metrics import structural_similarity as ssim
@@ -26,7 +27,8 @@ class MSE(BaseMetric, ABC):
         self.gts.append(gt)
 
     def compute(self):
-        mses = [self.formula(self.preds[i], self.gts[i]) for i in range(len(self.preds))]
+        mses = [self.formula(self.preds[i], self.gts[i]) for i in
+                range(len(self.preds))]
         return torch.mean(torch.Tensor(mses))
 
     @staticmethod
@@ -37,19 +39,23 @@ class MSE(BaseMetric, ABC):
 class PSNR(BaseMetric):
     """Peak signal-to-noise ratio metric"""
     def __init__(self):
-        self.mses = []
+        self._mses = []
 
     def reset(self):
-        self.mses = []
+        self._mses = []
 
     def update(self, pred, gt):
-        self.mses.append(
+        self._mses.append(
             MSE.formula(pred, gt)
         )
 
     def compute(self):
-        psnrs = [-10 * torch.log10(mse) for mse in self.mses]
+        psnrs = [-10 * torch.log10(mse) for mse in self._mses]
         return torch.mean(torch.Tensor(psnrs))
+
+    @property
+    def mses(self):
+        return self._mses
 
 
 class SSIM(BaseMetric):
@@ -64,9 +70,10 @@ class SSIM(BaseMetric):
         self.gts = []
 
     def update(self, pred, gt):
-        self.preds.append(pred)
-        self.gts.append(gt)
+        self.preds.append(np.array(pred))
+        self.gts.append(np.array(gt))
 
     def compute(self):
-        ssims = [ssim(self.gts[i], self.preds[i]) for i in range(len(self.preds))]
+        ssims = [ssim(self.gts[i], self.preds[i], multichannel=True) for i in
+                 range(len(self.preds))]
         return torch.mean(torch.Tensor(ssims))

@@ -18,7 +18,7 @@ class ModelCheckPoint:
 
     """
 
-    def __init__(self, exp_name, save_dir='logs', sfx='', i_save=5):
+    def __init__(self, exp_name, save_dir='logs', sfx='', i_save=1):
         sfx = f'_{sfx}' if sfx else ''
         self.save_dir = os.path.join(save_dir, f'{exp_name}{sfx}')
         self.i_save = i_save

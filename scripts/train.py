@@ -19,6 +19,7 @@ from scripts.trainer import Trainer
 
 if __name__ == '__main__':
     # PARAMS
+    device = torch.device('cpu')
     exp_name = 'test'
     save_dir = 'logs'
     sfx = '4time_downscale'
@@ -34,17 +35,19 @@ if __name__ == '__main__':
     dataset_module = dataset_dict[DATASET]
     train_set = dataset_module(
         root_dir=DATASET_DIR, split='train', img_wh=(504, 378),
-        spheric_poses=False, val_num=1, transforms=T.Compose([T.ToTensor()]),
-        res_factor=8, step=19)
+        spheric_poses=False, transforms=T.Compose([T.ToTensor()]),
+        res_factor=8, val_step=10
+    )
     val_set = dataset_module(
         root_dir=DATASET_DIR, split='val', img_wh=(504, 378),
-        spheric_poses=False, val_num=1, transforms=T.Compose([T.ToTensor()]),
-        res_factor=8
+        spheric_poses=False, transforms=T.Compose([T.ToTensor()]),
+        res_factor=8, val_step=10
     )
     test_set = dataset_module(
         root_dir=DATASET_DIR, split='test', img_wh=(504, 378),
-        spheric_poses=False, val_num=1, transforms=T.Compose([T.ToTensor()]),
-        res_factor=8)
+        spheric_poses=False, transforms=T.Compose([T.ToTensor()]),
+        res_factor=8, val_step=10
+    )
 
     train_loader = DataLoader(
         train_set, shuffle=True, num_workers=4, batch_size=1024,
@@ -54,22 +57,21 @@ if __name__ == '__main__':
         val_set, shuffle=False, num_workers=4, batch_size=1, pin_memory=True
     )
     test_loader = DataLoader(
-        test_set, shuffle=False, num_workers=4, batch_size=1,
-        pin_memory=True
+        test_set, shuffle=False, num_workers=4, batch_size=1, pin_memory=True
     )
 
     # MODELS
     embedders = {
-        'pos': Embedder(N_freqs=10, in_channels=3, log_scale=True),
-        'dir': Embedder(N_freqs=4, in_channels=3, log_scale=True)
+        'pos': Embedder(N_freqs=10, in_channels=3, log_scale=True).to(device),
+        'dir': Embedder(N_freqs=4, in_channels=3, log_scale=True).to(device)
     }
     models = {
         'coarse': NeRF(
             D=8, W=256, in_channels_xyz=63, in_channels_dir=27, skips=[4]
-        ),
+        ).to(device),
         'fine': NeRF(
             D=8, W=256, in_channels_xyz=63, in_channels_dir=27, skips=[4]
-        )
+        ).to(device)
     }
 
     # OPTIMIZER AND LR SCHEDULER
@@ -88,15 +90,13 @@ if __name__ == '__main__':
 
     # LOGGERS
     writer = Writer(
-        exp_name=exp_name, save_dir=save_dir, sfx=sfx, i_image=5
+        exp_name=exp_name, save_dir=save_dir, sfx=sfx, i_image=1
     )
     model_ckpt = ModelCheckPoint(
-        exp_name=exp_name, save_dir=save_dir, sfx=sfx, i_save=5
+        exp_name=exp_name, save_dir=save_dir, sfx=sfx, i_save=1
     )
 
     # TRAINER
-    device = torch.device('cpu')
-
     trainer = Trainer(
         train_set=train_loader,
         val_set=val_loader,
@@ -110,7 +110,8 @@ if __name__ == '__main__':
         writer=writer,
         model_ckpt=model_ckpt,
         load_weight=False,
-        device=device
+        device=device,
+        chunk=1024
     )
 
     trainer.fit()
