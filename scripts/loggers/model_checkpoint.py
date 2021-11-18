@@ -11,7 +11,7 @@ class ModelCheckPoint:
         - save global epoch
 
     Args:
-        ave_dir (str): saving direction
+        save_dir (str): saving direction
         exp_name (str): experiment name
         sfx (str): suffix of the experiment
         i_save (int): save checkpoint every i_save epoch
@@ -44,7 +44,7 @@ class ModelCheckPoint:
             )
 
         sfx = f'_{sfx}' if sfx else ''
-        if epoch == -1 and sfx != "":
+        if sfx != "":
             torch.save(
                 self.to_dict(
                     models, optimizer, lr_scheduler, best_psnr, epoch

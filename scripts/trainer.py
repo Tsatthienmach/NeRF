@@ -1,3 +1,5 @@
+import os.path
+
 import torch
 import numpy as np
 from tqdm import tqdm
@@ -26,7 +28,7 @@ class Trainer:
         writer: writer module for logging training information
         model_ckpt: model checkpoint module for saving/loading model
         load_weight (bool): If True, load pretrained checkpoints
-        chunk (int): TODO
+        chunk (int): separate batch into mini-batches
         epochs (int): number of training loops
         device: training device
         i_test (int): test model every i_test epochs
@@ -143,7 +145,7 @@ class Trainer:
         if psnr > self.best_psnr:
             self.best_psnr = psnr
             self.model_ckpt.save(self.models, self.optimizer,
-                                 self.lr_scheduler, psnr, epoch=-1,
+                                 self.lr_scheduler, psnr, epoch,
                                  sfx='best_psnr')
 
     def validate(self, epoch):
@@ -174,12 +176,14 @@ class Trainer:
                 metric_results[metric_name] = \
                     vars()[f'{metric_name}_metric'].compute()
 
-            self.writer.save_metrics(metric_results, epoch, pfx='val')
-            self.writer.save_loss(np.mean(vars()['psnr_metric'].mses), epoch,
-                                  pfx='val')
-            self.writer.save_depths(torch.stack(pred_depths, dim=0), epoch)
-            self.writer.save_imgs(torch.stack(pred_rgbs, dim=0), b_rgbs,
-                                  epoch, data_format='NHWC')
+            if b_idx == 0:
+                self.writer.save_depths(torch.stack(pred_depths, dim=0), epoch)
+                self.writer.save_imgs(torch.stack(pred_rgbs, dim=0), b_rgbs,
+                                      epoch, data_format='NHWC')
+
+        self.writer.save_metrics(metric_results, epoch, pfx='val')
+        self.writer.save_loss(np.mean(vars()['psnr_metric'].mses), epoch,
+                              pfx='val')
 
     def test(self, epoch):
         self.eval()
@@ -226,6 +230,9 @@ class Trainer:
 
     def load_ckpt(self):
         print('-----------------------------')
+        if not os.path.isfile(self.weight):
+            return
+
         ckpt = torch.load(self.weight)
         self.optimizer.load_state_dict(ckpt['optimizer'])
         self.lr_scheduler.load_state_dict(ckpt['lr_scheduler'])

@@ -24,7 +24,7 @@ if __name__ == '__main__':
     exp_name = 'fern'
     save_dir = 'logs'
     sfx = '4'
-    CHUNK = 1024 * 2
+    CHUNK = 1024 + 512
     BATCH_SIZE = 1024 * 2
     IMG_WH = (504, 378)
     RES_FACTOR = 8
@@ -41,14 +41,15 @@ if __name__ == '__main__':
     WEIGHT_DECAY = 0
     I_IMAGE = 1
     I_SAVE = 1
-    I_TEST = 5
+    I_TEST = 20
     N_IMPORTANCE = 64
     N_SAMPLES = 64
     N_POSES = 120
     VAL_STEP = 8
 
     FPS = 12
-    LOAD_WEIGHT = False
+    LOAD_WEIGHT = True
+    WEIGHT = 'logs/fern_4/checkpoint.pth'
 
     LOSS = 'mse'
     DATASET = 'llff'
@@ -80,7 +81,7 @@ if __name__ == '__main__':
         pin_memory=True
     )
     val_loader = DataLoader(
-        val_set, shuffle=False, num_workers=4, batch_size=1, pin_memory=True
+        val_set, shuffle=False, num_workers=4, batch_size=2, pin_memory=True
     )
     test_loader = DataLoader(
         test_set, shuffle=False, num_workers=4, batch_size=1, pin_memory=True
@@ -136,7 +137,7 @@ if __name__ == '__main__':
         lr_scheduler=lr_scheduler,
         writer=writer,
         model_ckpt=model_ckpt,
-        weight='logs/test_4time_downscale/checkpoint_best_psnr.pth',
+        weight=WEIGHT,
         load_weight=LOAD_WEIGHT,
         device=device,
         chunk=CHUNK,

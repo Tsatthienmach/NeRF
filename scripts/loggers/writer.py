@@ -1,7 +1,6 @@
 import os
 import torch
 from torch.utils.tensorboard import SummaryWriter
-from torchvision.utils import make_grid
 
 
 class Writer:
@@ -49,8 +48,8 @@ class Writer:
             gt_imgs (tensor | Bs, H, W, C): ground truth images
             epoch (int): current epoch
             sfx (str): suffix for special cases
-            data_format (str): Image data format specification of the form NCHW,
-                NHWC, CHW, HWC, HW, WH, etc
+            data_format (str): Image data format specification of the form
+                NCHW, NHWC, CHW, HWC, HW, WH, etc
         """
         if epoch % self.i_image == 0:
             merged_images = torch.cat([gt_imgs, pred_imgs], dim=-3)
