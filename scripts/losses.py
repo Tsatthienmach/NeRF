@@ -12,6 +12,7 @@ class MSELoss(nn.Module):
         coarse_loss = self.loss(preds['rgb_coarse'], targets)
         losses = {
             'coarse': coarse_loss,
+            'fine': -1,
             'total': coarse_loss
         }
         if 'rgb_fine' in preds:

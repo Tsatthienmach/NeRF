@@ -1,5 +1,4 @@
-import os.path
-
+import os
 import torch
 import numpy as np
 from tqdm import tqdm
@@ -8,7 +7,7 @@ from utils.rendering import render_rays
 
 
 class Trainer:
-    """TODO
+    """
     Tasks:
         - train a epoch
         - validate
@@ -171,15 +170,15 @@ class Trainer:
                 for metric_name in self.metrics.keys():
                     vars()[f'{metric_name}_metric'].update(img, b_rgbs[i])
 
-            metric_results = {}
-            for metric_name in self.metrics.keys():
-                metric_results[metric_name] = \
-                    vars()[f'{metric_name}_metric'].compute()
-
             if b_idx == 0:
                 self.writer.save_depths(torch.stack(pred_depths, dim=0), epoch)
                 self.writer.save_imgs(torch.stack(pred_rgbs, dim=0), b_rgbs,
                                       epoch, data_format='NHWC')
+
+        metric_results = {}
+        for metric_name in self.metrics.keys():
+            metric_results[metric_name] = \
+                vars()[f'{metric_name}_metric'].compute()
 
         self.writer.save_metrics(metric_results, epoch, pfx='val')
         self.writer.save_loss(np.mean(vars()['psnr_metric'].mses), epoch,
@@ -231,7 +230,7 @@ class Trainer:
     def load_ckpt(self):
         print('-----------------------------')
         if not os.path.isfile(self.weight):
-            return
+            raise ValueError('No file ', self.weight)
 
         ckpt = torch.load(self.weight)
         self.optimizer.load_state_dict(ckpt['optimizer'])

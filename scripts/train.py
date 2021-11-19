@@ -16,72 +16,43 @@ from scripts.metrics import SSIM, PSNR
 from scripts.models import NeRF, Embedder
 from scripts.trainer import Trainer
 from scripts.utils.video_utils import VideoWriter
+from scripts.utils.opt import get_opts
 
 
 if __name__ == '__main__':
+    params = get_opts()
+    print('Params: ', params)
+
     # PARAMS
-    device = torch.device('cuda:0')
-    exp_name = 'fern'
-    save_dir = 'logs'
-    sfx = '4'
-    CHUNK = 1024 + 512
-    BATCH_SIZE = 1024 * 2
-    IMG_WH = (504, 378)
-    RES_FACTOR = 8
-    VAL_STEP = 10
-    POS_FREQS = 10
-    DIR_FREQS = 4
-    IN_CHANNELS = 3
-    LOG_SCALE = True
-    NERF_DEPTH = 8
-    NERF_HID_LAYERS = 256
-    POS_IN_CHANNELS = 63
-    DIR_IN_CHANNELS = 27
-    LR = 5e-4
-    WEIGHT_DECAY = 0
-    I_IMAGE = 1
-    I_SAVE = 1
-    I_TEST = 20
-    N_IMPORTANCE = 64
-    N_SAMPLES = 64
-    N_POSES = 120
-    VAL_STEP = 8
-
-    FPS = 12
-    LOAD_WEIGHT = True
-    WEIGHT = 'logs/fern_4/checkpoint.pth'
-
-    LOSS = 'mse'
-    DATASET = 'llff'
-    DATASET_DIR = '/home/tranhdq/Datasets/nerf_llff_data/fern'
+    device = torch.device(f'cuda:{params.gpu}') if params.gpu > -1 else \
+        torch.device('cpu')
 
     # LOSS
-    loss = loss_dict[LOSS]()
+    loss = loss_dict[params.loss]()
 
     # DATASET
-    dataset_module = dataset_dict[DATASET]
+    dataset_module = dataset_dict[params.data_type]
     train_set = dataset_module(
-        root_dir=DATASET_DIR, split='train', img_wh=(504, 378),
-        spheric_poses=False, transforms=T.Compose([T.ToTensor()]),
-        res_factor=8, val_step=VAL_STEP
+        root_dir=params.data_dir, split='train', img_wh=params.img_wh,
+        spheric_poses=params.spheric, transforms=T.Compose([T.ToTensor()]),
+        res_factor=params.res_factor, val_step=params.val_step
     )
     val_set = dataset_module(
-        root_dir=DATASET_DIR, split='val', img_wh=(504, 378),
-        spheric_poses=False, transforms=T.Compose([T.ToTensor()]),
-        res_factor=8, val_step=VAL_STEP
+        root_dir=params.data_dir, split='val', img_wh=params.img_wh,
+        spheric_poses=params.spheric, transforms=T.Compose([T.ToTensor()]),
+        res_factor=params.res_factor, val_step=params.val_step
     )
     test_set = dataset_module(
-        root_dir=DATASET_DIR, split='test', img_wh=(504, 378),
-        spheric_poses=False, transforms=T.Compose([T.ToTensor()]),
-        res_factor=8, val_step=VAL_STEP
+        root_dir=params.data_dir, split='test', img_wh=params.img_wh,
+        spheric_poses=params.spheric, transforms=T.Compose([T.ToTensor()]),
+        res_factor=params.res_factor, val_step=params.val_step
     )
-
     train_loader = DataLoader(
-        train_set, shuffle=True, num_workers=4, batch_size=BATCH_SIZE,
+        train_set, shuffle=True, num_workers=4, batch_size=params.batch_size,
         pin_memory=True
     )
     val_loader = DataLoader(
-        val_set, shuffle=False, num_workers=4, batch_size=2, pin_memory=True
+        val_set, shuffle=False, num_workers=4, batch_size=1, pin_memory=True
     )
     test_loader = DataLoader(
         test_set, shuffle=False, num_workers=4, batch_size=1, pin_memory=True
@@ -89,15 +60,25 @@ if __name__ == '__main__':
 
     # MODELS
     embedders = {
-        'pos': Embedder(N_freqs=10, in_channels=3, log_scale=True),
-        'dir': Embedder(N_freqs=4, in_channels=3, log_scale=True)
+        'pos': Embedder(N_freqs=params.pos_freqs,
+                        in_channels=params.in_channels,
+                        log_scale=params.log_scale),
+        'dir': Embedder(N_freqs=params.dir_freqs,
+                        in_channels=params.in_channels,
+                        log_scale=params.log_scale)
     }
     models = {
         'coarse': NeRF(
-            D=8, W=256, in_channels_xyz=63, in_channels_dir=27, skips=[4]
+            D=params.depth, W=params.hid_layers,
+            in_channels_xyz=params.in_channels * (1 + 2*params.pos_freqs),
+            in_channels_dir=params.in_channels * (1 + 2*params.dir_freqs),
+            skips=params.skips
         ).to(device),
         'fine': NeRF(
-            D=8, W=256, in_channels_xyz=63, in_channels_dir=27, skips=[4]
+            D=params.depth, W=params.hid_layers,
+            in_channels_xyz=params.in_channels * (1 + 2 * params.pos_freqs),
+            in_channels_dir=params.in_channels * (1 + 2 * params.dir_freqs),
+            skips=params.skips
         ).to(device)
     }
 
@@ -106,7 +87,8 @@ if __name__ == '__main__':
     for name, model in models.items():
         parameters += list(model.parameters())
 
-    optimizer = Adam(parameters, lr=5e-4, eps=1e-8, weight_decay=0)
+    optimizer = Adam(parameters, lr=params.lr, eps=params.eps,
+                     weight_decay=params.weight_decay)
     lr_scheduler = MultiStepLR(optimizer, milestones=[20], gamma=0.1)
 
     # METRICS
@@ -117,12 +99,16 @@ if __name__ == '__main__':
 
     # LOGGERS
     writer = Writer(
-        exp_name=exp_name, save_dir=save_dir, sfx=sfx, i_image=1
+        exp_name=params.exp_name, save_dir=params.log_dir, sfx=params.exp_sfx,
+        i_image=params.i_image
     )
     model_ckpt = ModelCheckPoint(
-        exp_name=exp_name, save_dir=save_dir, sfx=sfx, i_save=1
+        exp_name=params.exp_name, save_dir=params.log_dir, sfx=params.exp_sfx,
+        i_save=params.i_save
     )
-    video_writer = VideoWriter(exp_name, sfx=sfx, fps=FPS, res=(504, 378))
+    video_writer = VideoWriter(exp_name=params.exp_name, sfx=params.exp_sfx,
+                               save_dir=params.log_dir, fps=params.fps,
+                               res=params.img_wh)
 
     # TRAINER
     trainer = Trainer(
@@ -136,15 +122,19 @@ if __name__ == '__main__':
         optimizer=optimizer,
         lr_scheduler=lr_scheduler,
         writer=writer,
-        model_ckpt=model_ckpt,
-        weight=WEIGHT,
-        load_weight=LOAD_WEIGHT,
         device=device,
-        chunk=CHUNK,
+        model_ckpt=model_ckpt,
         video_writer=video_writer,
-        i_test=I_TEST,
-        N_samples=64,
-        N_importance=64,
+        N_samples=params.N_samples,
+        N_importance=params.N_importance,
+        chunk=params.chunk,
+        epochs=params.num_epochs,
+        perturb=params.perturb,
+        noise_std=params.noise_std,
+        use_disp=params.use_disp,
+        white_bg=params.white_bg,
+        i_test=params.i_test,
+        weight=params.weight,
+        load_weight=params.load_weight
     )
-
     trainer.fit()
