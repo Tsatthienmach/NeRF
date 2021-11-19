@@ -148,7 +148,7 @@ class LLFFDataset(Dataset):
             self.image_path_vals = [self.image_paths[idx] for idx in val_ids]
 
         else:  # For testing
-            self.test_info = {}
+            self.test_info = {'directions': self.directions}
             if self.split.endswith('train'):
                 self.poses_test = self.poses
             elif not self.spheric_poses:
@@ -164,6 +164,8 @@ class LLFFDataset(Dataset):
                 self.poses_test = create_spheric_poses(radius, phi=-36,
                                                        theta=(0, 360),
                                                        n_poses=self.n_poses)
+
+            self.test_info['poses_test'] = self.poses_test
 
     @staticmethod
     def to_rays(rays_o, rays_d, near, far):
