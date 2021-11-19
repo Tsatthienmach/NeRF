@@ -1,7 +1,7 @@
 exp_name = test
 exp_sfx = 4time_down_scale
 i_save = 1
-load_weight = True
+load_weight = False
 
 data_dir = .data/nerf_llff_data/fern
 data_type = llff

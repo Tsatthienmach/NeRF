@@ -24,7 +24,8 @@ class ModelCheckPoint:
         self.i_save = i_save
         os.makedirs(self.save_dir, exist_ok=True)
 
-    def save(self, models, optimizer, lr_scheduler, best_psnr, epoch, sfx=''):
+    def save(self, models, optimizer, lr_scheduler, best_psnr, epoch,
+             test_info, sfx=''):
         """Saving function.
 
         Args:
@@ -34,30 +35,32 @@ class ModelCheckPoint:
             best_psnr: the best PSNR achievement
             epoch: current epoch
             sfx (str): more comment on saving file
+            test_info (dict): Info that helps create inference pose
         """
         if epoch % self.i_save == 0:
             torch.save(
                 self.to_dict(
-                    models, optimizer, lr_scheduler, best_psnr, epoch
-                ),
-                f'{self.save_dir}/checkpoint.pth'
+                    models, optimizer, lr_scheduler, best_psnr, test_info,
+                    epoch
+                ), f'{self.save_dir}/checkpoint.pth'
             )
 
         sfx = f'_{sfx}' if sfx else ''
         if sfx != "":
             torch.save(
                 self.to_dict(
-                    models, optimizer, lr_scheduler, best_psnr, epoch
-                ),
-                f'{self.save_dir}/checkpoint{sfx}.pth'
+                    models, optimizer, lr_scheduler, best_psnr, test_info,
+                    epoch
+                ), f'{self.save_dir}/checkpoint{sfx}.pth'
             )
 
     @staticmethod
-    def to_dict(models, optimizer, lr_scheduler, best_psnr, epoch):
+    def to_dict(models, optimizer, lr_scheduler, best_psnr, test_info, epoch):
         saved_dict = {
             'optimizer': optimizer.state_dict(),
             'lr_scheduler': lr_scheduler.state_dict(),
             'epoch': epoch,
+            'test_info': test_info,
             'best_psnr': best_psnr
         }
         for model_name, model in models.items():

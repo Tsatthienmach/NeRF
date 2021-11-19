@@ -35,17 +35,20 @@ if __name__ == '__main__':
     train_set = dataset_module(
         root_dir=params.data_dir, split='train', img_wh=params.img_wh,
         spheric_poses=params.spheric, transforms=T.Compose([T.ToTensor()]),
-        res_factor=params.res_factor, val_step=params.val_step
+        res_factor=params.res_factor, val_step=params.val_step,
+        n_poses=params.N_poses
     )
     val_set = dataset_module(
         root_dir=params.data_dir, split='val', img_wh=params.img_wh,
         spheric_poses=params.spheric, transforms=T.Compose([T.ToTensor()]),
-        res_factor=params.res_factor, val_step=params.val_step
+        res_factor=params.res_factor, val_step=params.val_step,
+        n_poses=params.N_poses
     )
     test_set = dataset_module(
         root_dir=params.data_dir, split='test', img_wh=params.img_wh,
         spheric_poses=params.spheric, transforms=T.Compose([T.ToTensor()]),
-        res_factor=params.res_factor, val_step=params.val_step
+        res_factor=params.res_factor, val_step=params.val_step,
+        n_poses=params.N_poses
     )
     train_loader = DataLoader(
         train_set, shuffle=True, num_workers=4, batch_size=params.batch_size,

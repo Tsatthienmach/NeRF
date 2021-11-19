@@ -25,7 +25,7 @@ class LLFFDataset(Dataset):
     """
     def __init__(self, root_dir, split='train', img_wh=(504, 378),
                  spheric_poses=False, transforms=None, res_factor=1,
-                 val_step=1):
+                 val_step=1, n_poses=60):
         self.root_dir = root_dir
         self.split = split
         self.img_wh = img_wh
@@ -33,6 +33,7 @@ class LLFFDataset(Dataset):
         self.transforms = transforms if transforms else T.ToTensor()
         self.sfx = '' if res_factor == 1 else f'_{res_factor}'
         self.val_step = val_step
+        self.n_poses = n_poses
         self.read_meta()
 
     def __len__(self):
@@ -147,17 +148,22 @@ class LLFFDataset(Dataset):
             self.image_path_vals = [self.image_paths[idx] for idx in val_ids]
 
         else:  # For testing
+            self.test_info = {}
             if self.split.endswith('train'):
                 self.poses_test = self.poses
             elif not self.spheric_poses:
                 focus_depth = 3.5  # hardcoded
                 radii = np.percentile(np.abs(self.poses[..., 3]), 90, axis=0)
-                self.poses_test = create_spiral_poses(radii, focus_depth)
+                self.poses_test = create_spiral_poses(radii, focus_depth,
+                                                      n_poses=self.n_poses)
+                self.test_info['focus_depth'] = 3.5
+                self.test_info['radii'] = radii
             else:
                 radius = 1.1 * self.bounds.min()
-                self.poses_test = create_spheric_poses(radius,
-                                                       phi=-36,
-                                                       theta=(0, 360))
+                self.test_info['radius'] = radius
+                self.poses_test = create_spheric_poses(radius, phi=-36,
+                                                       theta=(0, 360),
+                                                       n_poses=self.n_poses)
 
     @staticmethod
     def to_rays(rays_o, rays_d, near, far):

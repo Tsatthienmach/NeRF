@@ -145,6 +145,7 @@ class Trainer:
             self.best_psnr = psnr
             self.model_ckpt.save(self.models, self.optimizer,
                                  self.lr_scheduler, psnr, epoch,
+                                 test_info=self.test_set.test_info,
                                  sfx='best_psnr')
 
     def validate(self, epoch):
