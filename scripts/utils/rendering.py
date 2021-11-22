@@ -28,9 +28,9 @@ def render_rays(models, embedders, rays, N_samples=64, use_disp=False,
             fine models.
     """
     # Get models
-    coarse_model = models['coarse']
-    xyz_embedder = embedders['pos']
-    dir_embedder = embedders['dir']
+    coarse_model = models[0]
+    xyz_embedder = embedders[0]
+    dir_embedder = embedders[1]
     # Decompose the inputs
     N_rays = rays.shape[0]
     rays_o, rays_d = rays[:, 0:3], rays[:, 3:6]  # (N_rays, 3)
@@ -82,7 +82,7 @@ def render_rays(models, embedders, rays, N_samples=64, use_disp=False,
         z_vals, _ = torch.sort(torch.cat([z_vals, z_vals_], -1), -1)
         xyz_fine_sampled = rays_o.unsqueeze(1) + \
                            rays_d.unsqueeze(1) * z_vals.unsqueeze(2)
-        model_fine = models['fine']
+        model_fine = models[1]
         rgb_fine, depth_fine, weights_fine = inference(
             model_fine, xyz_embedder, xyz_fine_sampled, rays_d, dir_embedded,
             z_vals, chunk=chunk, noise_std=noise_std, weights_only=False,
@@ -95,13 +95,13 @@ def render_rays(models, embedders, rays, N_samples=64, use_disp=False,
     return result
 
 
-def inference(model, embedding_xyz, xyz_, dir_, dir_embedded, z_vals,
+def inference(model, xyz_embedder, xyz_, dir_, dir_embedded, z_vals,
               chunk=1024*32, noise_std=1, weights_only=False, white_bg=False):
     """Helper function that performs model inference
 
     Args:
         model: NeRF model (coarse or fine)
-        embedding_xyz: embedding module for xyz
+        xyz_embedder: embedding module for xyz
         xyz_ (N_rays, N_samples_, 3): sampled positions
             N_samples_ is the number of sampled points in each ray
                 = N_samples for coarse model
@@ -132,7 +132,7 @@ def inference(model, embedding_xyz, xyz_, dir_, dir_embedded, z_vals,
     B = xyz_.shape[0]
     out_chunks = []
     for i in range(0, B, chunk):
-        xyz_embedded = embedding_xyz(xyz_[i: i + chunk])
+        xyz_embedded = xyz_embedder(xyz_[i: i + chunk])
         if not weights_only:
             xyz_dir_embedded = torch.cat([
                 xyz_embedded, dir_embedded[i: i + chunk]

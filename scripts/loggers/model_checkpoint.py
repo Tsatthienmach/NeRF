@@ -61,23 +61,7 @@ class ModelCheckPoint:
             'lr_scheduler': lr_scheduler.state_dict(),
             'epoch': epoch,
             'test_info': test_info,
-            'best_psnr': best_psnr
+            'best_psnr': best_psnr,
+            'models': models
         }
-        for model_name, model in models.items():
-            saved_dict[model_name] = model.state_dict()
-
         return saved_dict
-
-    @staticmethod
-    def load(path, models, optimizer, lr_scheduler):
-        loaded_dict = torch.load(path)
-        optimizer = optimizer.load_state_dict(loaded_dict.pop('optimizer'))
-        lr_scheduler = lr_scheduler.load_state_dict(
-            loaded_dict.pop('lr_scheduler')
-        )
-        epoch = loaded_dict.pop('epoch')
-        best_psnr = loaded_dict.pop('best_psnr')
-        for k, v in loaded_dict.items():
-            models[k] = v
-
-        return models, optimizer, lr_scheduler, epoch, best_psnr

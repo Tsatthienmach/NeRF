@@ -58,9 +58,20 @@ class Trainer:
                  white_bg=False,
                  use_disp=False,
                  weight=None,
-                 load_weight=False):
-        self.embedders = embedders
-        self.models = models
+                 load_weight=False,
+                 test_info=None):
+        self.xyz_embedder = embedders['pos']
+        self.dir_embedder = embedders['dir']
+        self.embedders = [self.xyz_embedder, self.dir_embedder]
+        self.coarse_model = models['coarse']
+        self.fine_model = models['fine']
+        self.models = [self.coarse_model]
+        if N_importance > 0:
+            self.models += [self.fine_model]
+
+        for model in self.models:
+            model.to(device)
+
         self.train_set = train_set
         self.val_set = val_set
         self.test_set = test_set
@@ -84,6 +95,7 @@ class Trainer:
         self.i_test = i_test
         self.video_writer = video_writer
         self.weight = weight
+        self.test_info = test_info
         if load_weight is True and weight is not None:
             self.load_ckpt()
         # Init trainer
@@ -126,9 +138,9 @@ class Trainer:
             self.optimizer.step()
             typ = 'fine' if 'rgb_fine' in results else 'coarse'
             data_tqdm.set_description(
-                f"Loss: C: {losses['coarse']:.3f}" +
-                f"| F: {losses['fine']:.3f}" +
-                f"| {loss:.3f}"
+                f"Loss: C: {losses['coarse'].detach():.3f}" +
+                f"| F: {losses['fine'].detach():.3f}" +
+                f"| {loss.detach():.3f}"
             )
             with torch.no_grad():
                 psnr_metric.update(
@@ -140,12 +152,12 @@ class Trainer:
         self.writer.save_loss(np.mean(psnr_metric.mses), epoch, pfx='train')
         self.writer.save_metrics({'psnr': psnr}, epoch, pfx='train')
         self.model_ckpt.save(self.models, self.optimizer, self.lr_scheduler,
-                             psnr, epoch, sfx='')
+                             psnr, epoch, self.test_info, sfx='')
         if psnr > self.best_psnr:
             self.best_psnr = psnr
             self.model_ckpt.save(self.models, self.optimizer,
                                  self.lr_scheduler, psnr, epoch,
-                                 test_info=self.test_set.test_info,
+                                 test_info=self.test_info,
                                  sfx='best_psnr')
 
     def validate(self, epoch):
@@ -213,11 +225,11 @@ class Trainer:
         self.video_writer.close()
 
     def train(self):
-        for _, model in self.models.items():
+        for model in self.models:
             model.train()
 
     def eval(self):
-        for _, model in self.models.items():
+        for model in self.models:
             model.eval()
 
     def fit(self):
@@ -238,9 +250,9 @@ class Trainer:
         self.lr_scheduler.load_state_dict(ckpt['lr_scheduler'])
         self._current_epoch = ckpt['epoch'] + 1
         self.best_psnr = ckpt['best_psnr']
-        self.models['coarse'].load_state_dict(ckpt['coarse'])
+        self.models[0].load_state_dict(ckpt['models'][0])
         if self.N_importance > 0:
-            self.models['fine'].load_state_dict(ckpt['fine'])
+            self.models[1].load_state_dict(ckpt['models'][1])
         print('         Loaded weight       ')
         print('-----------------------------')
 

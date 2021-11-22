@@ -20,7 +20,7 @@ class NeRF(nn.Module):
                  in_channels_xyz=63,
                  in_channels_dir=27,
                  skips=[4]):
-        super().__init__()
+        super(NeRF, self).__init__()
         self.D = D
         self.W = W
         self.in_channels_xyz = in_channels_xyz
@@ -36,7 +36,7 @@ class NeRF(nn.Module):
                 layer = nn.Linear(W, W)
 
             layer = nn.Sequential(layer, nn.ReLU(True))
-            setattr(self, f'xyz_encoding_{i+1}', layer)
+            setattr(self, f'xyz_encoding_{i + 1}', layer)
 
         self.xyz_encoding_final = nn.Linear(W, W)
         # direction encoding layers
@@ -67,17 +67,18 @@ class NeRF(nn.Module):
         else:
             input_xyz = x
 
-        xyz = input_xyz
+        xyz_ = input_xyz
         for i in range(self.D):
             if i in self.skips:
-                xyz = torch.cat([input_xyz, xyz], dim=-1)
-            xyz = getattr(self, f'xyz_encoding_{i+1}')(xyz)
+                xyz_ = torch.cat([input_xyz, xyz_], dim=-1)
 
-        sigma = self.sigma(xyz)
+            xyz_ = getattr(self, f'xyz_encoding_{i+1}')(xyz_)
+
+        sigma = self.sigma(xyz_)
         if sigma_only:
             return sigma
 
-        xyz_encoding_final = self.xyz_encoding_final(xyz)
+        xyz_encoding_final = self.xyz_encoding_final(xyz_)
         dir_encoding_input = torch.cat([xyz_encoding_final, input_dir], dim=-1)
         dir_encoding = self.dir_encoding(dir_encoding_input)
         rgb = self.rgb(dir_encoding)

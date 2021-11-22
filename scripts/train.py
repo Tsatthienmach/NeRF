@@ -76,13 +76,13 @@ if __name__ == '__main__':
             in_channels_xyz=params.in_channels * (1 + 2*params.pos_freqs),
             in_channels_dir=params.in_channels * (1 + 2*params.dir_freqs),
             skips=params.skips
-        ).to(device),
+        ),
         'fine': NeRF(
             D=params.depth, W=params.hid_layers,
             in_channels_xyz=params.in_channels * (1 + 2 * params.pos_freqs),
             in_channels_dir=params.in_channels * (1 + 2 * params.dir_freqs),
             skips=params.skips
-        ).to(device)
+        ) if params.N_importance > 0 else None
     }
 
     # OPTIMIZER AND LR SCHEDULER
@@ -138,6 +138,7 @@ if __name__ == '__main__':
         white_bg=params.white_bg,
         i_test=params.i_test,
         weight=params.weight,
-        load_weight=params.load_weight
+        load_weight=params.load_weight,
+        test_info=test_set.test_info
     )
     trainer.fit()

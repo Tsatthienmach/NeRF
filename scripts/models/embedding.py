@@ -30,8 +30,8 @@ class Embedder(nn.Module):
         Returns:
             encoded embedding (B, self.out_channels)
         """
-        encoded_embedding = [x]
+        out = [x]
         for freq in self.freq_bands:
-            encoded_embedding += [func(freq * x) for func in self.funcs]
-
-        return torch.cat(encoded_embedding, -1)
+            for func in self.funcs:
+                out.append(func(freq * x))
+        return torch.cat(out, -1)

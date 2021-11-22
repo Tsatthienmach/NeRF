@@ -4,3 +4,4 @@ dist
 *__pycache__*
 logs
 *mp4
+venv
