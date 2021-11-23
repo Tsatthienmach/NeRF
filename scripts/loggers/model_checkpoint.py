@@ -25,7 +25,7 @@ class ModelCheckPoint:
         os.makedirs(self.save_dir, exist_ok=True)
 
     def save(self, models, optimizer, lr_scheduler, best_psnr, epoch,
-             test_info, sfx=''):
+             test_info, sfx='', addition={}):
         """Saving function.
 
         Args:
@@ -36,12 +36,13 @@ class ModelCheckPoint:
             epoch: current epoch
             sfx (str): more comment on saving file
             test_info (dict): Info that helps create inference pose
+            addition (dict): save more information
         """
         if epoch % self.i_save == 0:
             torch.save(
                 self.to_dict(
                     models, optimizer, lr_scheduler, best_psnr, test_info,
-                    epoch
+                    addition, epoch
                 ), f'{self.save_dir}/checkpoint.pth'
             )
 
@@ -50,18 +51,20 @@ class ModelCheckPoint:
             torch.save(
                 self.to_dict(
                     models, optimizer, lr_scheduler, best_psnr, test_info,
-                    epoch
+                    addition, epoch
                 ), f'{self.save_dir}/checkpoint{sfx}.pth'
             )
 
     @staticmethod
-    def to_dict(models, optimizer, lr_scheduler, best_psnr, test_info, epoch):
+    def to_dict(models, optimizer, lr_scheduler, best_psnr, test_info,
+                addition, epoch):
         saved_dict = {
             'optimizer': optimizer.state_dict(),
             'lr_scheduler': lr_scheduler.state_dict(),
             'epoch': epoch,
             'test_info': test_info,
             'best_psnr': best_psnr,
-            'models': models
+            'models': [model.state_dict() for model in models],
+            'addition': addition
         }
         return saved_dict

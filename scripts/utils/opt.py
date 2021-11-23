@@ -77,4 +77,6 @@ def get_opts():
                         help='learning rate momentum')
     parser.add_argument('--weight_decay', type=float, default=0)
     parser.add_argument('--eps', type=float, default=1e-8)
+    parser.add_argument('--i_batch_save', type=int, default=-1,
+                        action='Save ckpt after i batch')
     return parser.parse_args()

@@ -31,6 +31,7 @@ class Trainer:
         epochs (int): number of training loops
         device: training device
         i_test (int): test model every i_test epochs
+        i_batch_save: save checkpoint every i_batch batches
         video_writer: testing video writer
     """
 
@@ -46,8 +47,6 @@ class Trainer:
                  lr_scheduler,
                  writer,
                  device,
-                 model_ckpt=None,
-                 video_writer=None,
                  N_samples=64,
                  N_importance=64,
                  chunk=1024 * 2,
@@ -57,8 +56,11 @@ class Trainer:
                  i_test=5,
                  white_bg=False,
                  use_disp=False,
-                 weight=None,
                  load_weight=False,
+                 i_batch_save=0,
+                 model_ckpt=None,
+                 video_writer=None,
+                 weight=None,
                  test_info=None):
         self.xyz_embedder = embedders['pos']
         self.dir_embedder = embedders['dir']
@@ -96,6 +98,8 @@ class Trainer:
         self.video_writer = video_writer
         self.weight = weight
         self.test_info = test_info
+        self.i_batch_save = i_batch_save
+        self.current_batch_idx = -1
         if load_weight is True and weight is not None:
             self.load_ckpt()
         # Init trainer
@@ -127,6 +131,11 @@ class Trainer:
         data_tqdm = tqdm(self.train_set)
         self.train()
         for b_idx, batch in enumerate(data_tqdm):
+            if b_idx <= self.current_batch_idx:
+                continue
+            else:
+                self.current_batch_idx = -1
+
             rays, rgbs = self.decode_batch(batch)
             rays = rays.to(self.device)
             rgbs = rgbs.to(self.device)
@@ -147,6 +156,12 @@ class Trainer:
                     pred=results[f'rgb_{typ}'].cpu(),
                     gt=rgbs.cpu()
                 )
+
+            if self.i_batch_save > 0:
+                self.model_ckpt.save(self.models, self.optimizer,
+                                     self.lr_scheduler, psnr_metric.compute(),
+                                     epoch, self.test_info, sfx='batch',
+                                     addition={'batch': b_idx})
 
         psnr = psnr_metric.compute()
         self.writer.save_loss(np.mean(psnr_metric.mses), epoch, pfx='train')
@@ -253,6 +268,10 @@ class Trainer:
         self.models[0].load_state_dict(ckpt['models'][0])
         if self.N_importance > 0:
             self.models[1].load_state_dict(ckpt['models'][1])
+
+        if i_batch_save in ckpt['addition'].keys():
+            self.current_batch_idx = ckpt['addition']['i_batch_save']
+
         print('         Loaded weight       ')
         print('-----------------------------')
 

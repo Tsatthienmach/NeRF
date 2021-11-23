@@ -18,3 +18,5 @@ log_scale = True
 use_disp = False
 perturb = 1
 noise_std = 1
+
+i_batch_save = 100
