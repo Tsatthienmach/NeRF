@@ -157,10 +157,10 @@ class Trainer:
                     gt=rgbs.cpu()
                 )
 
-            if self.i_batch_save > 0:
+            if (b_idx + 1) % self.i_batch_save == 0:
                 self.model_ckpt.save(self.models, self.optimizer,
                                      self.lr_scheduler, psnr_metric.compute(),
-                                     epoch, self.test_info, sfx='batch',
+                                     epoch - 1, self.test_info, sfx='batch',
                                      addition={'batch': b_idx})
 
         psnr = psnr_metric.compute()
@@ -269,8 +269,8 @@ class Trainer:
         if self.N_importance > 0:
             self.models[1].load_state_dict(ckpt['models'][1])
 
-        if i_batch_save in ckpt['addition'].keys():
-            self.current_batch_idx = ckpt['addition']['i_batch_save']
+        if 'batch' in ckpt['addition'].keys():
+            self.current_batch_idx = ckpt['addition']['batch']
 
         print('         Loaded weight       ')
         print('-----------------------------')

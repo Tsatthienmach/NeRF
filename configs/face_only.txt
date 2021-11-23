@@ -2,7 +2,6 @@ exp_name = face
 exp_sfx = only
 i_save = 1
 i_test = 10
-load_weight = False
 
 data_dir = /home/tranhdq/ws/Dataset/HumanFace/Face
 data_type = llff
@@ -12,11 +11,14 @@ img_wh = [500, 500]
 chunk = 1024
 batch_size = 2048
 
-gpu = 0
+gpu = -1
 log_scale = True
  # if not ndc (spheric == True) --> use_disp = False (cause near # 0)
 use_disp = False
 perturb = 1
 noise_std = 1
+
+weight = logs/face_only/checkpoint_batch.pth
+load_weight = False
 
 i_batch_save = 100
