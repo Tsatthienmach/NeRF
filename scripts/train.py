@@ -139,6 +139,7 @@ if __name__ == '__main__':
         i_test=params.i_test,
         weight=params.weight,
         load_weight=params.load_weight,
-        test_info=test_set.test_info
+        test_info=test_set.test_info,
+        i_batch_save=params.i_batch_save
     )
     trainer.fit()
