@@ -8,7 +8,7 @@ data_type = llff
 spheric = True
 res_factor = 1
 img_wh = [500, 500]
-chunk = 1024
+chunk = 2048
 batch_size = 2048
 
 gpu = -1
@@ -21,4 +21,4 @@ noise_std = 1
 weight = logs/face_only/checkpoint_batch.pth
 load_weight = False
 
-i_batch_save = 100
+i_batch_save = 1000
