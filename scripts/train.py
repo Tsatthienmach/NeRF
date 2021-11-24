@@ -24,8 +24,13 @@ if __name__ == '__main__':
     print('Params: ', params)
 
     # PARAMS
-    device = torch.device(f'cuda:{params.gpu}') if params.gpu > -1 else \
-        torch.device('cpu')
+    if torch.cuda.is_available() and params.gpu > -1:
+        # device = torch.device(f'cuda:{params.gpu}')
+        device = torch.device('cuda')
+        torch.cuda.set_device(0)
+        # torch.cuda.set_device(params.gpu)
+    else:
+        device = torch.device('cpu')
 
     # LOSS
     loss = loss_dict[params.loss]()
@@ -55,7 +60,7 @@ if __name__ == '__main__':
         pin_memory=True
     )
     val_loader = DataLoader(
-        val_set, shuffle=False, num_workers=4, batch_size=1, pin_memory=True
+        val_set, shuffle=False, num_workers=4, batch_size=2, pin_memory=True
     )
     test_loader = DataLoader(
         test_set, shuffle=False, num_workers=4, batch_size=1, pin_memory=True

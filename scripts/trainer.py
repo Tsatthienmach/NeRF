@@ -72,7 +72,7 @@ class Trainer:
             self.models += [self.fine_model]
 
         for model in self.models:
-            model.to(device)
+            model.cuda()
 
         self.train_set = train_set
         self.val_set = val_set
@@ -137,11 +137,9 @@ class Trainer:
                 self.current_batch_idx = -1
 
             rays, rgbs = self.decode_batch(batch)
-            rays = rays.to(self.device)
-            rgbs = rgbs.to(self.device)
             self.optimizer.zero_grad()
-            results = self.forward(rays)
-            losses = self.loss(results, rgbs)
+            results = self.forward(rays.cuda())
+            losses = self.loss(results, rgbs.cuda())
             loss = losses['total']
             loss.backward()
             self.optimizer.step()
@@ -187,7 +185,7 @@ class Trainer:
             pred_rgbs, pred_depths = [], []
             for i, rays in enumerate(b_rays):
                 with torch.no_grad():
-                    results = self.forward(rays.to(self.device),
+                    results = self.forward(rays.cuda(),
                                            val_tqdm=data_tqdm)
 
                 typ = 'fine' if 'rgb_fine' in results else 'coarse'
@@ -222,7 +220,7 @@ class Trainer:
             pred_rgbs, pred_depths = [], []
             for rays in b_rays:
                 with torch.no_grad():
-                    results = self.forward(rays.to(self.device),
+                    results = self.forward(rays.cuda(),
                                            val_tqdm=data_tqdm,
                                            test_mode=True)
 
@@ -271,6 +269,10 @@ class Trainer:
 
         if 'batch' in ckpt['addition'].keys():
             self.current_batch_idx = ckpt['addition']['batch']
+            print('Current batch index: ', self.current_batch_idx)
+            
+        print('Current epoch:', self._current_epoch)
+        print('Best psnr: ', self.best_psnr)
 
         print('         Loaded weight       ')
         print('-----------------------------')
