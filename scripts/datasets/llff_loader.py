@@ -25,7 +25,7 @@ class LLFFDataset(Dataset):
     """
     def __init__(self, root_dir, split='train', img_wh=(504, 378),
                  spheric_poses=False, transforms=None, res_factor=1,
-                 val_step=1, n_poses=60):
+                 val_step=1, n_poses=60, white_bg=True):
         self.root_dir = root_dir
         self.split = split
         self.img_wh = img_wh
@@ -34,6 +34,7 @@ class LLFFDataset(Dataset):
         self.sfx = '' if res_factor == 1 else f'_{res_factor}'
         self.val_step = val_step
         self.n_poses = n_poses
+        self.white_bg = white_bg
         self.read_meta()
 
     def __len__(self):
@@ -118,7 +119,14 @@ class LLFFDataset(Dataset):
                 if i in val_ids:
                     continue
                 c2w = torch.FloatTensor(self.poses[i])
-                img = Image.open(image_path).convert('RGB')
+                img = Image.open(image_path)
+                if self.white_bg and np.array(img).shape[-1] == 4:
+                    img = np.array(img)
+                    new = img[..., :3].astype(np.int) + (255 - img[..., -1:])
+                    new = np.clip(new, 0, 255).astype(np.uint8)
+                    img = Image.fromarray(new)
+
+                img = img.convert('RGB')
                 assert img.size[1] * self.img_wh[0] == \
                        img.size[0] * self.img_wh[1]
                 if img.size != self.img_wh:

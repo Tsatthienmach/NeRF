@@ -36,6 +36,7 @@ def get_opts():
                         help='validation step (llff)')
     parser.add_argument('--res_factor', type=int, default=4,
                         help='Help get images scaled *factor* times down')
+    parser.add_argument('--white_bg', default=False, action='store_true')
     # MEMORY CONTROLLER
     parser.add_argument('--batch_size', type=int, default=1024 * 2)
     parser.add_argument('--chunk', type=int, default=1024 * 2,
@@ -66,7 +67,6 @@ def get_opts():
                         help='std dev of noise added to regularize sigma')
     parser.add_argument('--skips', nargs="+", type=int, default=[4],
                         help='NeRF skip connection at k-th layers')
-    parser.add_argument('--white_bg', default=False, action='store_true')
     # LOSS
     parser.add_argument('--loss', type=str, choices=['mse'], default='mse',
                         help='loss function')
