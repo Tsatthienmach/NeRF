@@ -76,7 +76,7 @@ class LLFFDataset(Dataset):
                 img = Image.open(self.image_path_vals[idx])
                 if self.white_bg and np.array(img).shape[-1] == 4:
                     img = np.array(img)
-                    new = img[..., :3].astype(np.int) + (255 - img[..., -1:])
+                    new = img[..., :3].astype(int) + (255 - img[..., -1:])
                     new = np.clip(new, 0, 255).astype(np.uint8)
                     img = Image.fromarray(new)
 
@@ -129,7 +129,7 @@ class LLFFDataset(Dataset):
                 img = Image.open(image_path)
                 if self.white_bg and np.array(img).shape[-1] == 4:
                     img = np.array(img)
-                    new = img[..., :3].astype(np.int) + (255 - img[..., -1:])
+                    new = img[..., :3].astype(int) + (255 - img[..., -1:])
                     new = np.clip(new, 0, 255).astype(np.uint8)
                     img = Image.fromarray(new)
 
