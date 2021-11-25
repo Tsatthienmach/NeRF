@@ -68,11 +68,12 @@ class Trainer:
         self.coarse_model = models['coarse']
         self.fine_model = models['fine']
         self.models = [self.coarse_model]
+        self.device = device
         if N_importance > 0:
             self.models += [self.fine_model]
 
         for model in self.models:
-            model.cuda()
+            model.to(self.device)
 
         self.train_set = train_set
         self.val_set = val_set
@@ -92,7 +93,6 @@ class Trainer:
         self.noise_std = noise_std
         self.white_bg = white_bg
         self.use_disp = use_disp
-        self.device = device
         self.best_psnr = 0.
         self.i_test = i_test
         self.video_writer = video_writer
@@ -138,8 +138,8 @@ class Trainer:
 
             rays, rgbs = self.decode_batch(batch)
             self.optimizer.zero_grad()
-            results = self.forward(rays.cuda())
-            losses = self.loss(results, rgbs.cuda())
+            results = self.forward(rays.to(self.device))
+            losses = self.loss(results, rgbs.to(self.device))
             loss = losses['total']
             loss.backward()
             self.optimizer.step()
@@ -185,7 +185,7 @@ class Trainer:
             pred_rgbs, pred_depths = [], []
             for i, rays in enumerate(b_rays):
                 with torch.no_grad():
-                    results = self.forward(rays.cuda(),
+                    results = self.forward(rays.to(self.device),
                                            val_tqdm=data_tqdm)
 
                 typ = 'fine' if 'rgb_fine' in results else 'coarse'
@@ -220,7 +220,7 @@ class Trainer:
             pred_rgbs, pred_depths = [], []
             for rays in b_rays:
                 with torch.no_grad():
-                    results = self.forward(rays.cuda(),
+                    results = self.forward(rays.to(self.device),
                                            val_tqdm=data_tqdm,
                                            test_mode=True)
 

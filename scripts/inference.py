@@ -46,8 +46,8 @@ class NeRFInfer(torch.nn.Module):
                                in_channels * (1 + 2 * pos_freqs),
                                in_channels * (1 + 2 * dir_freqs),
                                skips=skips)
-        self.coarse_model.cuda()
-        self.fine_model.cuda()
+        self.coarse_model.to(self.device)
+        self.fine_model.to(self.device)
         self.coarse_model.eval()
         self.fine_model.eval()
         self.ckpt = torch.load(ckpt)
