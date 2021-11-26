@@ -106,13 +106,14 @@ class NeRFInfer(torch.nn.Module):
         self.coarse_model.load_state_dict(self.ckpt['models'][0])
         self.fine_model.load_state_dict(self.ckpt['models'][1])
         self.test_info = self.ckpt['test_info']
-        self.WH = self.test_info['WH']
+        self.W = self.test_info['WH'][0]
+        self.H = self.test_info['WH'][1]
         print(20 * '-')
         print('Epoch: ', self.ckpt['epoch'])
         print('PSNR: ', self.ckpt['best_psnr'])
         print(f'Radius boundary: {self.test_info["min_bound"] } ' +
               f'- {self.test_info["max_bound"]}')
-        print('Resolution: ', self.WH)
+        print('Resolution: ', self.W, self.H)
         print(20 * '-')
 
     def create_rays(self, radius=None, theta=0, phi=30):
