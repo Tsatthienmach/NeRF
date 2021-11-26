@@ -71,7 +71,7 @@ class NeRFInfer(torch.nn.Module):
 
     def show(self):
         i = 0
-        image = np.zeros((H * W, 3)).astype(np.uint8)
+        image = np.zeros((self.H * self.W, 3)).astype(np.uint8)
         while i < int(self.H * self.W) - 1:
             if i <= self.current_index and \
                self.current_rgb is not None:    
