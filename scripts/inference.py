@@ -64,7 +64,7 @@ class NeRFInfer(torch.nn.Module):
 
     def inference(self, radius=None, theta=0, phi=0):
         rays = self.create_rays(radius, theta, phi)
-        t1 = Thread(target=self.render_rays, args=(rays,))
+        t1 = Thread(target=self.render_rgbs, args=(rays,))
         t2 = Thread(target=self.show)
         t1.start()
         t2.start()
