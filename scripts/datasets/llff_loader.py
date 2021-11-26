@@ -163,7 +163,10 @@ class LLFFDataset(Dataset):
             self.image_path_vals = [self.image_paths[idx] for idx in val_ids]
 
         else:  # For testing
-            self.test_info = {'directions': self.directions}
+            self.test_info = {
+                'directions': self.directions,
+                'WH': self.img_wh
+            }
             if self.split.endswith('train'):
                 self.poses_test = self.poses
             elif not self.spheric_poses:
@@ -176,11 +179,11 @@ class LLFFDataset(Dataset):
             else:
                 radius = 1.1 * self.bounds.min()
                 self.test_info['radius'] = radius
+                self.test_info['min_bound'] = self.bounds.min()
+                self.test_info['max_bound'] = self.bounds.max()
                 self.poses_test = create_spheric_poses(radius, phi=-36,
                                                        theta=(0, 360),
                                                        n_poses=self.n_poses)
-
-            self.test_info['poses_test'] = self.poses_test
 
     @staticmethod
     def to_rays(rays_o, rays_d, near, far):

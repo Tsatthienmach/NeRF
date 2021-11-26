@@ -102,7 +102,6 @@ class Trainer:
         self.current_batch_idx = -1
         if load_weight is True and weight is not None:
             self.load_ckpt()
-        # Init trainer
 
     def forward(self, rays, val_tqdm=None, test_mode=False):
         bs = rays.shape[0]
@@ -270,7 +269,9 @@ class Trainer:
         if 'batch' in ckpt['addition'].keys():
             self.current_batch_idx = ckpt['addition']['batch']
             print('Current batch index: ', self.current_batch_idx)
-            
+
+        ckpt['test_info'] = self.test_info
+        torch.save(ckpt, self.weight) 
         print('Current epoch:', self._current_epoch)
         print('Best psnr: ', self.best_psnr)
 
