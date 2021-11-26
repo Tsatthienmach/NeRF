@@ -97,6 +97,7 @@ class NeRFInfer(torch.nn.Module):
     def forward(self, rays):
         results = render_rays(
             models=[self.coarse_model, self.fine_model],
+            embedders=[self.pos_embedder, self.dir_embedder],
             rays=rays, N_samples=64, perturb=1, N_importance=64,
             chunk=self.chunk, white_bg=True, test_mode=True
         )
