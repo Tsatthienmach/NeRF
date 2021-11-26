@@ -26,6 +26,7 @@ def get_opts():
     parser.add_argument('--depth', type=int, default=8)
     parser.add_argument('--hid_layers', type=int, default=256)
     parser.add_argument('--skips', nargs="+", type=int, default=[4])
+    parser.add_argument('--chunk', default=6000, type=int)
     parser.add_argument('--weight', type=str)
     parser.add_argument('--gpu', type=int, default=-1)
     return parser.parse_args()
@@ -44,7 +45,7 @@ class NeRFInfer(torch.nn.Module):
         super().__init__()
         self.device = dvc
         self.chunk = chunk
-        self.current_index = 0
+        self.next_idx = 0
         self.current_rgb = None
         self.pos_embedder = Embedder(pos_freqs, in_channels, log_scale)
         self.dir_embedder = Embedder(dir_freqs, in_channels, log_scale)
@@ -69,31 +70,49 @@ class NeRFInfer(torch.nn.Module):
         t2 = Thread(target=self.show)
         t1.start()
         t2.start()
+        t1.join()
+        t2.join()
+        print('Finish')
 
     def show(self):
         i = 0
         image = np.zeros((self.H * self.W, 3)).astype(np.uint8)
-        while i < int(self.H * self.W) - 1:
-            if i <= self.current_index and \
-               self.current_rgb is not None:    
-                image[i: self.current_index] = \
-                    np.array(self.current_rgb).astype(np.uint8)
-                i = self.index
+        while i + self.chunk <= int(self.H * self.W):
+            if i < self.next_idx and \
+               self.current_rgb is not None:   
+                image[i: self.next_idx] = \
+                    np.array(self.current_rgb * 255).astype(np.uint8)
+                i = self.next_idx
                 self.current_rgb = None
 
             img = image.reshape(self.H, self.W, 3)
             cv2.imshow('rgb', cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
             cv2.waitKey(1)
+
+        cv2.destroyWindow('rgb')
     
     def render_rgbs(self, rays):
-        for i in range(0, len(rays), self.chunk):
-            self.current_index = i + self.chunk
+        ray_len = len(rays)
+        self.next_idx = 0
+        self.render_rgbs = None
+        for i in range(0, ray_len, self.chunk):
             mini_rays = rays[i:i + self.chunk]
-            with torch.no_grad():
-                results = self(mini_rays.to(self.device))
+            mini_rays_len = len(mini_rays)
+            while True:
+                # print(self.next_idx, i, mini_rays_len)
+                if self.current_rgb is not None:
+                    if i + mini_rays_len >= ray_len:
+                        break
 
-            self.current_rgb = \
-                results['rgb_fine'].view(self.chunk, 3).cpu()
+                    continue
+                else:
+                    with torch.no_grad():
+                        results = self(mini_rays.to(self.device))
+
+                    self.current_rgb = \
+                        results['rgb_fine'].view(-1, 3).cpu()
+                    self.next_idx = i + mini_rays_len
+                    break
 
     def forward(self, rays):
         results = render_rays(
@@ -102,6 +121,7 @@ class NeRFInfer(torch.nn.Module):
             rays=rays, N_samples=64, perturb=1, N_importance=64,
             chunk=self.chunk, white_bg=True, test_mode=True
         )
+        return results
 
     def load_weight(self):
         self.coarse_model.load_state_dict(self.ckpt['models'][0])
@@ -113,7 +133,7 @@ class NeRFInfer(torch.nn.Module):
         print('Epoch: ', self.ckpt['epoch'])
         print('PSNR: ', self.ckpt['best_psnr'])
         print(f'Radius boundary: {self.test_info["min_bound"] } ' +
-              f'- {self.test_info["max_bound"]}')
+              f'| {self.test_info["max_bound"]}')
         print('Resolution: ', self.W, self.H)
         print(20 * '-')
 
@@ -148,9 +168,18 @@ if __name__ == '__main__':
     # params.gpu=0
     # params.weight='/mnt/datadrive/tranhdq/NeRF/NeRF/logs/face_removed_bg/checkpoint_best_psnr.pth'
 
+    radius=None
+    theta=0
+    phi=0
 
     device = torch.device(f'cuda:{params.gpu}')if params.gpu > -1 else \
         torch.device('cpu')
 
-    nerf = NeRFInfer(ckpt=params.weight, dvc=device)
-    nerf.inference()
+    nerf = NeRFInfer(ckpt=params.weight, dvc=device, chunk=params.chunk)
+
+    while True:
+        radius_tmp = input('Radius: ')
+        radius = float(radius_tmp) if radius_tmp else None
+        theta = float(input('Theta: '))
+        phi = float(input('Phi: '))
+        nerf.inference(radius, theta, phi)
