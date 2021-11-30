@@ -119,6 +119,11 @@ class LLFFDataset(Dataset):
         self.directions = get_ray_dirs(
             self.img_wh[1], self.img_wh[0], self.focal
         )
+
+        if self.spheric_poses:
+            self.poses, self.bounds, radcircle, zh = spherify_pose(self.poses,
+                                                                   self.bounds)
+
         if self.split == 'train':
             self.all_rays = []
             self.all_rgbs = []
@@ -165,7 +170,9 @@ class LLFFDataset(Dataset):
         else:  # For testing
             self.test_info = {
                 'directions': self.directions,
-                'WH': self.img_wh
+                'WH': self.img_wh,
+                'radcircle': radcircle,
+                'zh': zh
             }
             if self.split.endswith('train'):
                 self.poses_test = self.poses
@@ -181,7 +188,7 @@ class LLFFDataset(Dataset):
                 self.test_info['radius'] = radius
                 self.test_info['min_bound'] = self.bounds.min()
                 self.test_info['max_bound'] = self.bounds.max()
-                self.poses_test = create_spheric_poses(radius, phi=-36,
+                self.poses_test = create_spheric_poses(radcircle, zh,
                                                        theta=(0, 360),
                                                        n_poses=self.n_poses)
 

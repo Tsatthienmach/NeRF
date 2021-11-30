@@ -6,6 +6,69 @@ def normalize(v):
     return v / np.linalg.norm(v)
 
 
+def min_line_dist(rays_o, rays_d):
+    A_i = np.eye(3) - rays_d * np.transpose(rays_d, [0, 2, 1])
+    b_i = -A_i @ rays_o
+    pt_mindist = np.squeeze(
+        -np.linalg.inv(
+            (np.transpose(A_i, [0, 2, 1]) @ A_i).mean(0)
+        ) @ (b_i).mean(0)
+    )
+    return pt_mindist
+
+
+def spherify_pose(poses, bds):
+    """Spherify poses that captured in inward-forward condition
+
+    Args:
+        poses: camera poses
+        bds: pose boundaries
+    """
+    p34_to_44 = lambda p : np.concatenate(
+        [p, np.tile(np.reshape(np.eye(4)[-1,:], [1,1,4]), [p.shape[0], 1,1])],
+        1
+    )
+    rays_d = poses[:, :3, 2:3]
+    rays_o = poses[:, :3, 3:4]
+    pt_mindist = min_line_dist(rays_o, rays_d)
+    center = pt_mindist
+    up = (poses[:, :3, 3] - center).mean(0)
+    vec0 = normalize(up)
+    vec1 = normalize(np.cross([1., 2., 3.], vec0))
+    vec2 = normalize(np.cross(vec0, vec1))
+    pos = center
+    c2w = np.stack([vec1, vec2, vec0, pos], 1)
+    poses_reset = np.linalg.inv(
+        p34_to_44(c2w[None])
+    ) @ p34_to_44(poses[:, :3, :4])
+    rad = np.sqrt(np.mean(np.sum(np.square(poses_reset[:, :3, 3]), -1)))
+    sc = 1./rad
+    poses_reset[:, :3, 3] *= sc
+    bds *= sc
+    rad *= sc
+    centroid = np.mean(poses_reset[:, :3, 3], 0)
+    zh = centroid[2]
+    radcircle = np.sqrt(rad**2 - zh**2)
+    poses_reset = np.concatenate([
+        poses_reset[:, :3, :4],
+        np.broadcast_to(poses[0, :3, -1:], poses_reset[:, :3, -1:].shape)
+    ], -1)
+    return poses_reset, bds, radcircle, zh
+
+
+def create_spherical_pose(theta, radcircle, zh):
+    cam_origin = np.array([radcircle * np.cos(theta),
+                           radcircle * np.sin(theta),
+                           zh])
+    up = np.array([0, 0, -1.])
+    vec2 = normalize(cam_origin)
+    vec0 = normalize(np.cross(vec2, up))
+    vec1 = normalize(np.cross(vec2, vec0))
+    pos = cam_origin
+    p = np.stack([vec0, vec1, vec2, pos], 1)
+    return p
+
+
 def average_pose(poses):
     """Calculate the average pose, which is then used to center all poses
     using @center_poses. Its computation is as follows:
@@ -87,46 +150,10 @@ def create_spiral_poses(radii, focus_depth, n_poses=120):
     return np.stack(poses_spiral, 0)
 
 
-def spheric_pose(theta, phi, radius):
-    trans_t = lambda t: np.array([
-        [1, 0, 0, 0],
-        [0, 1, 0, -0.9 * t],
-        [0, 0, 1, t],
-        [0, 0, 0, 1]
-    ]).astype(np.float32)
-
-    rot_phi = lambda ph: np.array([
-        [1, 0, 0, 0],
-        [0, np.cos(ph), -np.sin(ph), 0],
-        [0, np.sin(ph), np.cos(ph), 0],
-        [0, 0, 0, 1],
-    ]).astype(np.float32)
-
-    rot_theta = lambda th: np.array([
-        [np.cos(th), 0, -np.sin(th), 0],
-        [0, 1, 0, 0],
-        [np.sin(th), 0, np.cos(th), 0],
-        [0, 0, 0, 1],
-    ]).astype(np.float32)
-
-    c2w = trans_t(radius)
-    c2w = rot_phi(phi/180. * np.pi) @ c2w
-    c2w = rot_theta(theta/180. * np.pi) @ c2w
-    c2w = c2w @ np.array([
-        [-1, 0, 0, 0],
-        [0, 0, 1, 0],
-        [0, 1, 0, 0],
-        [0, 0, 0, 1]
-    ])
-    return c2w[:3]
-
-
-def create_spheric_poses(radius, phi=30, theta=(0, 180), n_poses=120):
+def create_spheric_poses(radcircle, zh, theta=(0, 180), n_poses=120):
     """Create circular poses around z axis
 
     Args:
-        radius: the (negative) height and the radius of the circle
-        phi (angle): Vertically circle
         theta (tuple | (starting angle, finishing angle)): Horizontally circle
         n_poses (int): number of poses to create along the path
 
@@ -134,7 +161,8 @@ def create_spheric_poses(radius, phi=30, theta=(0, 180), n_poses=120):
         spheric_poses (n_poses, 3, 4): the poses in the circular path
     """
     poses_spheric = []
-    for th in np.linspace(theta[0], theta[1], n_poses + 1)[:-1]:
-        poses_spheric.append(spheric_pose(th, phi, radius))
+    for th in np.linspace(theta[0]/180 * np.pi, theta[1]/180 * np.pi,
+                          n_poses + 1)[:-1]:
+        poses_spheric.append(create_spherical_pose(th, radcircle, zh))
 
     return np.stack(poses_spheric, 0)
