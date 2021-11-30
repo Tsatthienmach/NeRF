@@ -1,12 +1,12 @@
 exp_name = face
-exp_sfx = glasses
+exp_sfx = removed_bg_no_spheric
 i_save = 1
 i_test = 10
 num_epochs = 10
 
-data_dir = /mnt/datadrive/tranhdq/NeRF/Dataset/HumanFace/Glasses
+data_dir = /mnt/datadrive/tranhdq/NeRF/Dataset/HumanFace/Face_removed_bg
 data_type = llff
-spheric = True
+spheric = False
 res_factor = 1
 img_wh = [500, 500]
 chunk = 3000
@@ -20,7 +20,7 @@ use_disp = False
 perturb = 1
 noise_std = 1
 
-weight = logs/face_glasses/checkpoint_batch.pth
+weight = logs/face_removed_bg_no_spheric/checkpoint_batch.pth
 load_weight = False
 
 i_batch_save = 1000

@@ -1,10 +1,10 @@
-exp_name = face
-exp_sfx = glasses
+exp_name = officePlant
+exp_sfx = 1m5
 i_save = 1
 i_test = 10
 num_epochs = 10
 
-data_dir = /mnt/datadrive/tranhdq/NeRF/Dataset/HumanFace/Glasses
+data_dir = /mnt/datadrive/tranhdq/NeRF/Dataset/OfficePlant/office_plant_1.5m
 data_type = llff
 spheric = True
 res_factor = 1
@@ -20,7 +20,7 @@ use_disp = False
 perturb = 1
 noise_std = 1
 
-weight = logs/face_glasses/checkpoint_batch.pth
+weight = logs/officePlant_1m5/checkpoint_batch.pth
 load_weight = False
 
 i_batch_save = 1000
