@@ -93,29 +93,31 @@ def spheric_pose(theta, phi, radius):
         [0, 1, 0, -0.9 * t],
         [0, 0, 1, t],
         [0, 0, 0, 1]
-    ])
+    ]).astype(np.float32)
 
     rot_phi = lambda ph: np.array([
         [1, 0, 0, 0],
         [0, np.cos(ph), -np.sin(ph), 0],
         [0, np.sin(ph), np.cos(ph), 0],
         [0, 0, 0, 1],
-    ])
+    ]).astype(np.float32)
 
     rot_theta = lambda th: np.array([
         [np.cos(th), 0, -np.sin(th), 0],
         [0, 1, 0, 0],
         [np.sin(th), 0, np.cos(th), 0],
         [0, 0, 0, 1],
-    ])
+    ]).astype(np.float32)
 
-    c2w = rot_theta(theta) @ rot_phi(phi) @ trans_t(radius)
-    c2w = np.array([
+    c2w = trans_t(radius)
+    c2w = rot_phi(phi/180. * np.pi) @ c2w
+    c2w = rot_theta(theta/180. * np.pi) @ c2w
+    c2w = c2w @ np.array([
         [-1, 0, 0, 0],
         [0, 0, 1, 0],
         [0, 1, 0, 0],
         [0, 0, 0, 1]
-    ]) @ c2w
+    ])
     return c2w[:3]
 
 
@@ -132,7 +134,7 @@ def create_spheric_poses(radius, phi=30, theta=(0, 180), n_poses=120):
         spheric_poses (n_poses, 3, 4): the poses in the circular path
     """
     poses_spheric = []
-    for th in np.linspace(theta[0], theta[1]/180 * np.pi, n_poses + 1)[:-1]:
-        poses_spheric.append(spheric_pose(th, phi/180 * np.pi, radius))
+    for th in np.linspace(theta[0], theta[1], n_poses + 1)[:-1]:
+        poses_spheric.append(spheric_pose(th, phi, radius))
 
     return np.stack(poses_spheric, 0)
