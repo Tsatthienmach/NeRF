@@ -4,7 +4,7 @@ i_save = 1
 i_test = 10
 num_epochs = 10
 
-data_dir = /mnt/datadrive/tranhdq/NeRF/Dataset/HumanFace/Mask
+data_dir = /mnt/datadrive/tranhdq/NeRF/Dataset_bk/HumanFace/Mask
 data_type = llff
 spheric = True
 res_factor = 1

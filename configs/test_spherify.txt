@@ -1,0 +1,26 @@
+exp_name = test
+exp_sfx = spherify
+i_save = 1
+i_test = 4
+num_epochs = 4
+
+data_dir = /mnt/datadrive/tranhdq/NeRF/Dataset/HumanFace/Face_removed_bg
+data_type = llff
+spheric = True
+res_factor = 1
+img_wh = [500, 500]
+chunk = 3000
+batch_size = 3000
+white_bg = True
+
+gpu = 0
+log_scale = True
+ # if not ndc (spheric == True) --> use_disp = False (cause near # 0)
+use_disp = False
+perturb = 1
+noise_std = 1
+
+weight = logs/face_removed_bg/checkpoint_batch.pth
+load_weight = True
+
+i_batch_save = 1000

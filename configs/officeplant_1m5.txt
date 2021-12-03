@@ -21,6 +21,6 @@ perturb = 1
 noise_std = 1
 
 weight = logs/officePlant_1m5/checkpoint_batch.pth
-load_weight = False
+load_weight = True
 
 i_batch_save = 1000

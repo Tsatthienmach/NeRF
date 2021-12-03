@@ -1,10 +1,12 @@
 exp_name = face
 exp_sfx = only
+log_dir = logs_bk
 i_save = 1
 i_test = 6
 num_epochs = 6
 
-data_dir = /mnt/datadrive/tranhdq/NeRF/Dataset/HumanFace/Face
+
+data_dir = /mnt/datadrive/tranhdq/NeRF/Dataset_bk/HumanFace/Face
 data_type = llff
 spheric = True
 res_factor = 1

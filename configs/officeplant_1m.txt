@@ -4,7 +4,7 @@ i_save = 1
 i_test = 10
 num_epochs = 10
 
-data_dir = /mnt/datadrive/tranhdq/NeRF/Dataset/OfficePlant/office_plant_1m
+data_dir = /mnt/datadrive/tranhdq/NeRF/Dataset_bk/OfficePlant/office_plant_1m
 data_type = llff
 spheric = True
 res_factor = 1
@@ -20,7 +20,7 @@ use_disp = False
 perturb = 1
 noise_std = 1
 
-weight = logs/officePlant_1m/checkpoint_batch.pth
-load_weight = False
+weight = logs_bk/officePlant_1m/checkpoint_batch.pth
+load_weight = True
 
 i_batch_save = 1000

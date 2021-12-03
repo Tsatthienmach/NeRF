@@ -79,4 +79,9 @@ def get_opts():
     parser.add_argument('--eps', type=float, default=1e-8)
     parser.add_argument('--i_batch_save', type=int, default=-1,
                         help='Save ckpt after i batch')
+
+    # Evaluate mode
+    parser.add_argument('--eval', action='store_true')
+    parser.add_argument('--render_train', action='store_true')
+
     return parser.parse_args()

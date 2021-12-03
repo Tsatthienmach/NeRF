@@ -25,7 +25,8 @@ class LLFFDataset(Dataset):
     """
     def __init__(self, root_dir, split='train', img_wh=(504, 378),
                  spheric_poses=False, transforms=None, res_factor=1,
-                 val_step=1, n_poses=60, white_bg=True):
+                 val_step=1, n_poses=60, white_bg=True,
+                 render_train=False):
         self.root_dir = root_dir
         self.split = split
         self.img_wh = img_wh
@@ -35,11 +36,15 @@ class LLFFDataset(Dataset):
         self.val_step = val_step
         self.n_poses = n_poses
         self.white_bg = white_bg
+        self.render_train = render_train
         self.read_meta()
 
     def __len__(self):
         if self.split == 'train':
-            return len(self.all_rays)
+            if not self.render_train:
+                return len(self.all_rays)
+            else:
+                return len(self.train_poses)
         elif self.split == 'val':
             return len(self.image_path_vals)
         else:
@@ -47,10 +52,17 @@ class LLFFDataset(Dataset):
 
     def __getitem__(self, idx):
         if self.split == 'train':
-            sample = {
-                'rays': self.all_rays[idx],
-                'rgbs': self.all_rgbs[idx]
-            }
+            if not self.render_train:
+                sample = {
+                    'rays': self.all_rays[idx],
+                    'rgbs': self.all_rgbs[idx]
+                }
+            else:
+                sample = {
+                    'rays': self.train_poses[idx],
+                    'rgbs': self.train_rgbs[idx]
+                }
+
         else:
             if self.split == 'val':
                 c2w = torch.FloatTensor(self.c2w_vals[idx])
@@ -122,9 +134,12 @@ class LLFFDataset(Dataset):
         if self.split == 'train':
             self.all_rays = []
             self.all_rgbs = []
+            self.train_poses = []
+            self.train_rgbs = []
             for i, image_path in enumerate(self.image_paths):
                 if i in val_ids:
                     continue
+
                 c2w = torch.FloatTensor(self.poses[i])
                 img = Image.open(image_path)
                 if self.white_bg and np.array(img).shape[-1] == 4:
@@ -152,6 +167,12 @@ class LLFFDataset(Dataset):
                 else:
                     near = self.bounds.min()
                     far = min(8 * near, self.bounds.max())
+
+                if self.render_train:
+                    self.train_poses.append(self.to_rays(rays_o, rays_d, near, far))
+                    self.train_rgbs.append(
+                        img.reshape(self.img_wh[1], self.img_wh[0], -1)
+                    )
 
                 self.all_rays.append(self.to_rays(rays_o, rays_d, near, far))
 

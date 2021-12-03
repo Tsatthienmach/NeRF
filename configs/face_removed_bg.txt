@@ -4,7 +4,7 @@ i_save = 1
 i_test = 6
 num_epochs = 6
 
-data_dir = /home/tranhdq/ws/Dataset/HumanFace/Face_removed_bg
+data_dir = /mnt/datadrive/tranhdq/NeRF/Dataset_bk/HumanFace/Face_removed_bg
 data_type = llff
 spheric = True
 res_factor = 1

@@ -1,0 +1,27 @@
+exp_name = forest_house
+exp_sfx = 1_circle_1000
+i_save = 1
+i_test = 10
+num_epochs = 10
+
+data_dir = /mnt/datadrive/tranhdq/NeRF/Dataset/Blender/forest_house
+data_type = llff
+spheric = True
+res_factor = 1
+###
+img_wh = [1000, 1000]
+chunk = 4000
+batch_size = 4000
+white_bg = True
+
+gpu = 0
+log_scale = True
+ # if not ndc (spheric == True) --> use_disp = False (cause near # 0)
+use_disp = False
+perturb = 1
+noise_std = 1
+
+weight = logs/forest_house_1_circle_500/checkpoint_batch.pth
+load_weight = False
+
+i_batch_save = 1000

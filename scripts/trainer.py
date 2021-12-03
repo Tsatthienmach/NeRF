@@ -1,4 +1,5 @@
 import os
+import cv2
 import torch
 import numpy as np
 from tqdm import tqdm
@@ -204,8 +205,20 @@ class Trainer:
         for metric_name in self.metrics.keys():
             metric_results[metric_name] = \
                 vars()[f'{metric_name}_metric'].compute()
+            self.writer.writer.add_scalar(f'Metric/val/{metric_name}',
+                                   metric_results[metric_name],
+                                   epoch)
 
+        print('Epoch: ', epoch)
+        print("Metric_results", metric_results)
+        tmp_loss = np.mean(vars()['psnr_metric'].mses)
+        print('Loss: ', tmp_loss)
+        self.writer.writer.add_scalar(f'Loss/val', tmp_loss, epoch)
+        self.writer.writer.add_scalar(f'Loss/val', tmp_loss, epoch)
         self.writer.save_metrics(metric_results, epoch, pfx='val')
+        self.writer.save_metrics(metric_results, epoch, pfx='val')
+        self.writer.save_loss(np.mean(vars()['psnr_metric'].mses), epoch,
+                              pfx='val')
         self.writer.save_loss(np.mean(vars()['psnr_metric'].mses), epoch,
                               pfx='val')
 
@@ -251,6 +264,43 @@ class Trainer:
             self.validate(e)
             if (e + 1) % self.i_test == 0:
                 self.test(e)
+
+    def evaluate(self):
+        print('Evaluate epoch: ', self._current_epoch)
+        self.validate(self._current_epoch - 1)
+
+    def render(self, train_set):
+        """Render training poses"""
+        tqdm = np.random.choice(len(train_set), size=2)
+        pred_rgbs, pred_depths, targs = [], [], []
+        for i in tqdm:
+            print('Index: ', i)
+            sample = train_set[i]
+            rays = sample['rays']
+            targ = sample['rgbs']
+            targs.append(targ)
+            self.eval()
+            with torch.no_grad():
+                results = self.forward(rays.to(self.device))
+
+            typ = 'fine' if 'rgb_fine' in results else 'coarse'
+            img = results[f'rgb_{typ}'].view(targ.shape).cpu().numpy()
+            depth = results[f'depth_{typ}'].view(targ.shape[:2]).cpu().numpy()
+            print('Img: ', img, img.max())
+            print('Depth: ', depth.min(), depth.max())
+            pred_rgbs.append(img)
+            pred_depths.append(depth / depth.max())
+
+        targs = np.concatenate(targs, axis=1)
+        pred_rgbs = np.concatenate(pred_rgbs, axis=1)
+        pred_depths = np.concatenate(pred_depths, axis=1)
+        pred_depths = np.tile(pred_depths[..., None], (1, 1, 3))
+        out = np.concatenate([targs, pred_rgbs, pred_depths],
+                             axis=0)
+        out = (out * 255).astype(np.uint8)
+        print(out.shape, out.max(), out.min())
+        cv2.imwrite(f'{self.writer.log_dir}/out_{self._current_epoch}.jpg',
+                    cv2.cvtColor(out, cv2.COLOR_RGB2BGR))
 
     def load_ckpt(self):
         print('-----------------------------')

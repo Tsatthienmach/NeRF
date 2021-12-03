@@ -40,7 +40,8 @@ if __name__ == '__main__':
         root_dir=params.data_dir, split='train', img_wh=params.img_wh,
         spheric_poses=params.spheric, transforms=T.Compose([T.ToTensor()]),
         res_factor=params.res_factor, val_step=params.val_step,
-        n_poses=params.N_poses, white_bg=params.white_bg
+        n_poses=params.N_poses, white_bg=params.white_bg,
+        render_train=params.render_train
     )
     val_set = dataset_module(
         root_dir=params.data_dir, split='val', img_wh=params.img_wh,
@@ -146,4 +147,12 @@ if __name__ == '__main__':
         test_info=test_set.test_info,
         i_batch_save=params.i_batch_save
     )
-    trainer.fit()
+    if params.render_train:
+        trainer.render(train_set)
+        exit()
+
+    if not params.eval:
+        trainer.fit()
+    else:
+        trainer.evaluate()
+
